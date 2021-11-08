@@ -1,1 +1,1 @@
-build --cxxopt -std=gnu++2a --incompatible_enable_cc_toolchain_resolution
+build --cxxopt -std=gnu++2a

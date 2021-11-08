@@ -12,8 +12,6 @@
             "-j=4",
             "-compile-commands-dir=${workspaceRoot}",
         ],
-        "clangd.path": "${workspaceRoot}/bazel-lie_dynamics/external/llvm_toolchain_llvm/bin/clangd",
-        "clang-format.executable": "${workspaceRoot}/bazel-lie_dynamics/external/llvm_toolchain_llvm/bin/clang-format",
         "clang-format.style": "google",
     }
 }

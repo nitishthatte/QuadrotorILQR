@@ -11,6 +11,6 @@ TEST(Dynamics, UpdatesStateCorrectly) {
   const auto x_new = dynamics(x_orig, u);
   const auto x_expected = u;
 
-  EXPECT_EQ(x_expected, u);
+  EXPECT_EQ(x_expected, x_new);
 }
 }  // namespace model
