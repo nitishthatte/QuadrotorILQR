@@ -1,6 +1,6 @@
 #include "src/dynamics.hh"
 
-namespace model {
+namespace src {
 manif::SE3d dynamics(const manif::SE3d &x, const manif::SE3d &u,
                      manif::SE3d::Jacobian *J_x, manif::SE3d::Jacobian *J_u) {
   manif::SE3d::Jacobian J_x_internal, J_u_internal;
@@ -13,4 +13,4 @@ manif::SE3d dynamics(const manif::SE3d &x, const manif::SE3d &u,
   }
   return x_next;
 }
-}  // namespace model
+}  // namespace src

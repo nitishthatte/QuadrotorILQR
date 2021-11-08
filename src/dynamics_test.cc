@@ -2,8 +2,7 @@
 
 #include <gtest/gtest.h>
 
-namespace model {
-// Demonstrate some basic assertions.
+namespace src {
 TEST(Dynamics, UpdatesStateCorrectly) {
   const auto x_orig = manif::SE3d::Identity();
   const auto u = manif::SE3d{{1.0, 0.0, 0.0}, manif::SO3d{M_PI, 0.0, 0.0}};
@@ -35,4 +34,4 @@ TEST(Dynamics, CalculatesCorrectControlJacobian) {
   const manif::SE3d::Jacobian J_u_expected = manif::SE3d::Jacobian::Identity();
   EXPECT_EQ(J_u, J_u_expected);
 }
-}  // namespace model
+}  // namespace src
