@@ -1,0 +1,8 @@
+bazel-*
+.cache
+.clangd
+.vscode
+external
+node_modules
+compile_commands.json
+.DS_Store
