@@ -21,7 +21,6 @@ cc_test(
 
 cc_library(
     name = "cost",
-    srcs = ["cost.cc"],
     hdrs = ["cost.hh"],
     deps = [
         ":dynamics",
@@ -35,6 +34,44 @@ cc_test(
     srcs = ["cost_test.cc"],
     deps = [
         ":cost",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "trajectory",
+    hdrs = ["trajectory.hh"],
+    deps = [
+        ":dynamics",
+    ],
+)
+
+cc_test(
+    name = "trajectory_test",
+    size = "small",
+    srcs = ["trajectory_test.cc"],
+    deps = [
+        ":trajectory",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "ilqr",
+    hdrs = ["ilqr.hh"],
+    deps = [
+        ":cost",
+        ":dynamics",
+        ":trajectory",
+    ],
+)
+
+cc_test(
+    name = "ilqr_test",
+    size = "small",
+    srcs = ["ilqr_test.cc"],
+    deps = [
+        ":ilqr",
         "@gtest//:gtest_main",
     ],
 )

@@ -2,10 +2,18 @@
 #include <manif/manif.h>
 
 namespace src {
-constexpr int StateDim = manif::SE3d::DoF;
-constexpr int ControlDim = manif::SE3d::DoF;
+struct LieDynamics {
+  using State = manif::SE3d;
+  using Control = manif::SE3d;
+  static constexpr int STATE_DIM = State::DoF;
+  static constexpr int CONTROL_DIM = Control::DoF;
 
-manif::SE3d dynamics(const manif::SE3d &x, const manif::SE3d &u,
-                     manif::SE3d::Jacobian *J_x = nullptr,
-                     manif::SE3d::Jacobian *J_u = nullptr);
+  struct DynamicsDifferentials {
+    State::Jacobian J_x;
+    Control::Jacobian J_u;
+  };
+
+  static State dynamics(const State &x, const Control &u,
+                        DynamicsDifferentials *diffs = nullptr);
+};
 }  // namespace src
