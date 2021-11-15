@@ -26,11 +26,13 @@ struct ILQR {
       const std::vector<typename ModelT::Control::Tangent> &delta_u_ff,
       const std::vector<FeedbackGains> &gains,
       const double line_search_alpha = 1.0,
-      OptDiffs *opt_diffs_ptr = nullptr) const {
+      std::vector<OptDiffs> *opt_diffs_ptr = nullptr) const {
     Trajectory<ModelT> updated_traj;
     updated_traj.reserve(current_traj.size());
 
     auto state = current_traj.front().state;
+    double cost = 0;
+
     for (int i = 0; i < current_traj.size(); ++i) {
       auto control = current_traj[i].control +
                      line_search_alpha * delta_u_ff[i] +
@@ -40,10 +42,17 @@ struct ILQR {
           TrajectoryPoint<ModelT>{.time_s = current_traj[i].time_s,
                                   .state = state,
                                   .control = control});
-      state = ModelT::dynamics(state, control);
+
+      auto [dynamics_diffs_ptr, cost_diffs_ptr] =
+          opt_diffs_ptr == nullptr
+              ? std::make_pair(nullptr, nullptr)
+              : std::make_pair(&(opt_diffs_ptr->at(i).dynamics_diffs),
+                               &(opt_diffs_ptr->at(i).cost_diffs));
+      cost += cost_function_(state, control, i, cost_diffs_ptr);
+      state = ModelT::dynamics(state, control, dynamics_diffs_ptr);
     }
 
-    return std::make_pair(updated_traj, 0.0);
+    return std::make_pair(updated_traj, cost);
   }
 };
 }  // namespace src
