@@ -20,11 +20,11 @@ class CostFunction {
       Eigen::Matrix<double, ModelT::STATE_DIM, ModelT::CONTROL_DIM>;
 
   struct CostDifferentials {
-    CostJacobianState C_x;
-    CostJacobianControl C_u;
-    CostHessianStateState C_xx;
-    CostHessianControlControl C_uu;
-    CostHessianStateControl C_xu;
+    CostJacobianState x;
+    CostJacobianControl u;
+    CostHessianStateState xx;
+    CostHessianControlControl uu;
+    CostHessianStateControl xu;
   };
 
   CostFunction(CostHessianStateState Q, CostHessianControlControl R,
@@ -49,13 +49,13 @@ class CostFunction {
                        delta_u.coeffs().transpose() * R_ * delta_u.coeffs())(0);
 
     if (diffs) {
-      diffs->C_x = 2 * delta_x.coeffs().transpose() * Q_ * J_delta_x;
-      diffs->C_xx = 2 * J_delta_x.transpose() * Q_ * J_delta_x;
+      diffs->x = 2 * delta_x.coeffs().transpose() * Q_ * J_delta_x;
+      diffs->xx = 2 * J_delta_x.transpose() * Q_ * J_delta_x;
 
-      diffs->C_u = 2 * delta_u.coeffs().transpose() * R_ * J_delta_u;
-      diffs->C_uu = 2 * J_delta_u.transpose() * R_ * J_delta_u;
+      diffs->u = 2 * delta_u.coeffs().transpose() * R_ * J_delta_u;
+      diffs->uu = 2 * J_delta_u.transpose() * R_ * J_delta_u;
 
-      diffs->C_xu = CostHessianStateControl::Zero();
+      diffs->xu = CostHessianStateControl::Zero();
     }
 
     return cost;

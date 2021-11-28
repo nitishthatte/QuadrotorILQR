@@ -14,9 +14,9 @@ using DynamicsDifferentials = LieDynamics::DynamicsDifferentials;
 using ILQRSolver = ILQR<LieDynamics>;
 using CostFunc = CostFunction<LieDynamics>;
 
-class ILQRForwardPassFixture : public ::testing::Test {
+class ILQRFixture : public ::testing::Test {
  protected:
-  ILQRForwardPassFixture() {
+  ILQRFixture() {
     current_traj_ =
         Trajectory<LieDynamics>{N_,
                                 {.time_s = 0.0,
@@ -30,28 +30,29 @@ class ILQRForwardPassFixture : public ::testing::Test {
 
     Control::Tangent delta_u = Control::Tangent::Zero();
     delta_u.coeffs()(0) = 1.0;  // delta-x-pos
-    delta_u_traj_ = std::vector<Control::Tangent>{N_, delta_u};
+    ctrl_update_traj_ = ILQRSolver::ControlUpdateTrajectory{
+        N_, ILQRSolver::ControlUpdate{
+                .ff_update = delta_u,
+                .feedback = ILQRSolver::FeedbackGains::Zero()}};
   }
 
   size_t N_ = 3;
   double dt_s_ = 0.1;
-  std::vector<ILQRSolver::FeedbackGains> K_{N_,
-                                            ILQRSolver::FeedbackGains::Zero()};
   Trajectory<LieDynamics> current_traj_;
-  std::vector<Control::Tangent> delta_u_traj_;
+  ILQRSolver::ControlUpdateTrajectory ctrl_update_traj_;
 
   // create cost function
   CostFunc::CostHessianStateState Q_ =
       CostFunc::CostHessianStateState::Identity();
   CostFunc::CostHessianControlControl R_ =
       CostFunc::CostHessianStateState::Identity();
-  CostFunc cost_func_{
-      Q_, R_, {N_, State::Identity()}, {N_, Control::Identity()}};
+
+  ILQRSolver ilqr_{
+      CostFunc{Q_, R_, {N_, State::Identity()}, {N_, Control::Identity()}},
+      LineSearchParams{0.5, 0.5}};
 };
 
-TEST_F(ILQRForwardPassFixture, SimulatesTrajectory) {
-  const auto ilqr = ILQRSolver(cost_func_);
-
+TEST_F(ILQRFixture, ForwardPassSimulatesTrajectory) {
   // expected new trajectory
   Trajectory<LieDynamics> new_traj_expected{
       {.time_s = 0.0,
@@ -68,43 +69,73 @@ TEST_F(ILQRForwardPassFixture, SimulatesTrajectory) {
            LieDynamics::Control{{1.0, 0.0, 0.0}, manif::SO3d::Identity()}}};
 
   const auto new_traj =
-      ilqr.forward_pass(current_traj_, delta_u_traj_, K_).first;
+      ilqr_.forward_pass(current_traj_, ctrl_update_traj_).first;
 
   EXPECT_EQ(new_traj, new_traj_expected);
 }
 
-TEST_F(ILQRForwardPassFixture, CalculatesCorrectCost) {
-  const auto ilqr = ILQRSolver(cost_func_);
-
-  const auto cost = ilqr.forward_pass(current_traj_, delta_u_traj_, K_).second;
+TEST_F(ILQRFixture, ForwardPassCalculatesCorrectCost) {
+  const auto cost = ilqr_.forward_pass(current_traj_, ctrl_update_traj_).second;
 
   const auto expected_cost = 1.0 + 2.0 * 2.0 + 1.0 * 3;
 
   EXPECT_EQ(cost, expected_cost);
 }
 
-TEST_F(ILQRForwardPassFixture, CalculatesDifferentialsIfRequested) {
-  const auto ilqr = ILQRSolver(cost_func_);
-
+TEST_F(ILQRFixture, ForwardPassCalculatesDifferentialsIfRequested) {
   std::vector<ILQRSolver::OptDiffs> opt_diffs{N_};
-  ilqr.forward_pass(current_traj_, delta_u_traj_, K_, 1.0, &opt_diffs);
+  ilqr_.forward_pass(current_traj_, ctrl_update_traj_, 1.0, &opt_diffs);
 
   int i = 0;
   for (const auto &diffs : opt_diffs) {
     if (i++ == 0) {
-      EXPECT_EQ(diffs.cost_diffs.C_x, CostFunc::CostJacobianState::Zero());
+      EXPECT_EQ(diffs.cost_diffs.x, CostFunc::CostJacobianState::Zero());
     } else {
-      EXPECT_NE(diffs.cost_diffs.C_x, CostFunc::CostJacobianState::Zero());
+      EXPECT_NE(diffs.cost_diffs.x, CostFunc::CostJacobianState::Zero());
     }
-    EXPECT_NE(diffs.cost_diffs.C_u, CostFunc::CostJacobianControl::Zero());
-    EXPECT_NE(diffs.cost_diffs.C_xx, CostFunc::CostHessianStateState::Zero());
-    EXPECT_NE(diffs.cost_diffs.C_uu,
-              CostFunc::CostHessianControlControl::Zero());
-    EXPECT_EQ(diffs.cost_diffs.C_xu, CostFunc::CostHessianStateControl::Zero());
+    EXPECT_NE(diffs.cost_diffs.u, CostFunc::CostJacobianControl::Zero());
+    EXPECT_NE(diffs.cost_diffs.xx, CostFunc::CostHessianStateState::Zero());
+    EXPECT_NE(diffs.cost_diffs.uu, CostFunc::CostHessianControlControl::Zero());
+    EXPECT_EQ(diffs.cost_diffs.xu, CostFunc::CostHessianStateControl::Zero());
 
     EXPECT_NE(diffs.dynamics_diffs.J_x, State::Jacobian::Zero());
     EXPECT_NE(diffs.dynamics_diffs.J_u, Control::Jacobian::Zero());
   }
 }
 
+TEST_F(ILQRFixture, BackwardPassReturnsZeroUpdateIfZeroGradient) {
+  constexpr size_t num_pts = 4;
+  std::vector<ILQRSolver::OptDiffs> diffs{
+      num_pts, ILQRSolver::OptDiffs{
+                   .dynamics_diffs =
+                       DynamicsDifferentials{.J_x = State::Jacobian::Zero(),
+                                             .J_u = Control::Jacobian::Zero()},
+                   .cost_diffs = CostFunc::CostDifferentials{
+                       .x = CostFunc::CostJacobianState::Zero(),
+                       .u = CostFunc::CostJacobianControl::Zero(),
+                       .xx = CostFunc::CostHessianStateState::Identity(),
+                       .uu = CostFunc::CostHessianControlControl::Identity(),
+                       .xu = CostFunc::CostHessianStateControl::Zero(),
+                   }}};
+
+  const auto [ctrl_traj_update, expected_cost_reduction] =
+      ilqr_.backwards_pass(diffs);
+
+  EXPECT_EQ(ctrl_traj_update.size(), num_pts);
+  EXPECT_EQ(expected_cost_reduction, 0.0);
+  for (const auto &ctrl_update : ctrl_traj_update) {
+    EXPECT_EQ(ctrl_update.ff_update, Control::Tangent::Zero());
+    EXPECT_EQ(ctrl_update.feedback, ILQRSolver::FeedbackGains::Zero());
+  }
+}
+
+TEST_F(ILQRFixture,
+       BackwardsPassExpectedValueReductionIsNegativeIfReductionPossible) {
+  std::vector<ILQRSolver::OptDiffs> opt_diffs{N_};
+  ilqr_.forward_pass(current_traj_, ctrl_update_traj_, 1.0, &opt_diffs);
+
+  const auto expected_cost_reduction = ilqr_.backwards_pass(opt_diffs).second;
+
+  EXPECT_LT(expected_cost_reduction, 0.0);
+}
 }  // namespace src

@@ -70,7 +70,7 @@ TEST_F(ComputeCostDifferentials, CostStateJacobianCloseToFiniteDifference) {
         (2 * EPS);
   }
   const auto error =
-      (cost_diffs_.C_x - C_x_finite_diff).norm() / C_x_finite_diff.size();
+      (cost_diffs_.x - C_x_finite_diff).norm() / C_x_finite_diff.size();
   EXPECT_LT(error, EPS);
 }
 
@@ -92,7 +92,7 @@ TEST_F(ComputeCostDifferentials, CostStateStateHessianCloseToFiniteDifference) {
     }
   }
 
-  const auto error = (cost_diffs_.C_xx.inverse() * C_xx_finite_diff -
+  const auto error = (cost_diffs_.xx.inverse() * C_xx_finite_diff -
                       CostFunc::CostHessianStateState::Identity())
                          .norm();
   EXPECT_LT(error, 11.0);
@@ -109,7 +109,7 @@ TEST_F(ComputeCostDifferentials, CostControlJacobianCloseToFiniteDifference) {
         (2 * EPS);
   }
   const auto error =
-      (cost_diffs_.C_u - C_u_finite_diff).norm() / C_u_finite_diff.size();
+      (cost_diffs_.u - C_u_finite_diff).norm() / C_u_finite_diff.size();
   EXPECT_LT(error, EPS);
 }
 
@@ -132,7 +132,7 @@ TEST_F(ComputeCostDifferentials,
     }
   }
 
-  const auto error = (cost_diffs_.C_uu.inverse() * C_uu_finite_diff -
+  const auto error = (cost_diffs_.uu.inverse() * C_uu_finite_diff -
                       CostFunc::CostHessianControlControl::Identity())
                          .norm();
   EXPECT_LT(error, 110.0);
