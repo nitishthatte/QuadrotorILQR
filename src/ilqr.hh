@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdexcept>
+#include <string>
+
 #include "src/cost.hh"
 #include "src/dynamics.hh"
 #include "src/trajectory.hh"
@@ -9,14 +12,18 @@ namespace src {
 struct LineSearchParams {
   double step_update;
   double desired_reduction_frac;
+  int max_iters;
 
-  LineSearchParams(double step_update_, double desired_reduction_frac_)
+  LineSearchParams(const double step_update_,
+                   const double desired_reduction_frac_, const int max_iters_)
       : step_update(step_update_),
-        desired_reduction_frac(desired_reduction_frac_) {
+        desired_reduction_frac(desired_reduction_frac_),
+        max_iters(max_iters_) {
     assert(step_update > 0.0);
     assert(step_update < 1.0);
     assert(desired_reduction_frac > 0.0);
     assert(desired_reduction_frac < 1.0);
+    assert(max_iters > 0);
   }
 };
 
@@ -34,8 +41,6 @@ struct ILQR {
     typename ModelT::DynamicsDifferentials dynamics_diffs;
     typename CostFunction<ModelT>::CostDifferentials cost_diffs;
   };
-
-  using ControlTrajectory = std::vector<typename ModelT::Control>;
 
   using FeedbackGains =
       Eigen::Matrix<double, ModelT::STATE_DIM, ModelT::CONTROL_DIM>;
@@ -136,8 +141,27 @@ struct ILQR {
     return std::make_pair(ctrl_update_traj, delta_v);
   }
 
-  double line_search(const ControlUpdateTrajectory &ctrl_update_traj,
-                     const double expected_cost_reduction) const {}
+  std::tuple<Trajectory<ModelT>, double, double> line_search(
+      const Trajectory<ModelT> &current_traj, const double current_cost,
+      const ControlUpdateTrajectory &ctrl_update_traj,
+      const double expected_cost_reduction) const {
+    assert(expected_cost_reduction <= 0);
+    const auto desired_cost_reduction =
+        line_search_params_.desired_reduction_frac * expected_cost_reduction;
+
+    auto step = 1.0;
+    for (int i = 0; i < line_search_params_.max_iters; ++i) {
+      const auto [new_traj, new_cost] =
+          forward_pass(current_traj, ctrl_update_traj, step);
+      if (new_cost - current_cost < step * desired_cost_reduction) {
+        return std::make_tuple(new_traj, new_cost, step);
+      }
+      step *= line_search_params_.step_update;
+    }
+    throw std::runtime_error(
+        "Reached maximum number of line search iterations, " +
+        std::to_string(line_search_params_.max_iters) + "\n");
+  }
 };
 
 }  // namespace src

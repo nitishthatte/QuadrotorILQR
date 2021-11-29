@@ -49,7 +49,7 @@ class ILQRFixture : public ::testing::Test {
 
   ILQRSolver ilqr_{
       CostFunc{Q_, R_, {N_, State::Identity()}, {N_, Control::Identity()}},
-      LineSearchParams{0.5, 0.5}};
+      LineSearchParams{0.5, 0.5, 10}};
 };
 
 TEST_F(ILQRFixture, ForwardPassSimulatesTrajectory) {
@@ -137,5 +137,19 @@ TEST_F(ILQRFixture,
   const auto expected_cost_reduction = ilqr_.backwards_pass(opt_diffs).second;
 
   EXPECT_LT(expected_cost_reduction, 0.0);
+}
+
+TEST_F(ILQRFixture, LineSearchFindsStepSizeThatReducesCost) {
+  std::vector<ILQRSolver::OptDiffs> opt_diffs{N_};
+  const auto [current_traj, current_cost] =
+      ilqr_.forward_pass(current_traj_, ctrl_update_traj_, 1.0, &opt_diffs);
+  const auto [ctrl_update_traj, expected_cost_reduction] =
+      ilqr_.backwards_pass(opt_diffs);
+  const auto [new_traj, new_cost, step] = ilqr_.line_search(
+      current_traj, current_cost, ctrl_update_traj, expected_cost_reduction);
+
+  EXPECT_LT(new_cost - current_cost,
+            expected_cost_reduction *
+                ilqr_.line_search_params_.desired_reduction_frac * step);
 }
 }  // namespace src
