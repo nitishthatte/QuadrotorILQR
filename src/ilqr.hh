@@ -56,11 +56,10 @@ struct ILQR {
 
   using ControlUpdateTrajectory = std::vector<ControlUpdate>;
 
-  Trajectory<ModelT> forward_pass(
+  Trajectory<ModelT> forward_sim(
       const Trajectory<ModelT> &current_traj,
       const ControlUpdateTrajectory &ctrl_update_traj,
-      const double line_search_alpha = 1.0,
-      std::vector<DynamicsDiffs> *diffs_ptr = nullptr) const {
+      const double line_search_alpha = 1.0) const {
     Trajectory<ModelT> updated_traj;
     updated_traj.reserve(current_traj.size());
 
@@ -76,30 +75,25 @@ struct ILQR {
                                   .state = state,
                                   .control = control});
 
-      auto diff_ptr = diffs_ptr == nullptr ? nullptr : &diffs_ptr->at(i);
-      state = ModelT::dynamics(state, control, diff_ptr);
+      state = ModelT::dynamics(state, control);
     }
 
     return updated_traj;
   }
 
-  double cost_trajectory(const Trajectory<ModelT> &traj,
-                         std::vector<CostDiffs> *diffs_ptrs = nullptr) const {
+  double cost_trajectory(const Trajectory<ModelT> &traj) const {
     auto cost = 0.0;
     for (int i = 0; i < traj.size(); ++i) {
-      auto diff_ptr = diffs_ptrs == nullptr ? nullptr : &diffs_ptrs->at(i);
-      cost += cost_function_(traj[i].state, traj[i].control, i, diff_ptr);
+      cost += cost_function_(traj[i].state, traj[i].control, i);
     }
     return cost;
   }
 
   std::pair<ControlUpdateTrajectory, double> backwards_pass(
-      const std::vector<DynamicsDiffs> &dynamics_diffs,
-      const std::vector<CostDiffs> &cost_diffs) const {
+      const Trajectory<ModelT> &traj) const {
     ControlUpdateTrajectory ctrl_update_traj;
-    assert(dynamics_diffs.size() == cost_diffs.size());
-    const auto num_pts = cost_diffs.size();
-    ctrl_update_traj.reserve(cost_diffs.size());
+    const auto num_pts = traj.size();
+    ctrl_update_traj.reserve(num_pts);
 
     typename CostFunc::CostJacobianState v_x =
         CostFunc::CostJacobianState::Zero();
@@ -107,28 +101,29 @@ struct ILQR {
         CostFunc::CostHessianStateState::Zero();
     typename CostFunc::CostDifferentials Q;
     for (int i = num_pts - 1; i >= 0; --i) {
+      DynamicsDiffs dynamics_diffs;
+      ModelT::dynamics(traj[i].state, traj[i].control, &dynamics_diffs);
+      const auto &[J_x, J_u] = dynamics_diffs;
+
+      CostDiffs C;
+      cost_function_(traj[i].state, traj[i].control, i, &C);
+
       Q = typename CostFunc::CostDifferentials{
-          .x = cost_diffs[i].x + dynamics_diffs[i].J_x.transpose() * v_x,
-          .u = cost_diffs[i].u + dynamics_diffs[i].J_u.transpose() * v_x,
-          .xx = cost_diffs[i].xx + dynamics_diffs[i].J_x.transpose() * v_xx *
-                                       dynamics_diffs[i].J_x,
-          .xu = cost_diffs[i].xu + dynamics_diffs[i].J_x.transpose() * v_xx *
-                                       dynamics_diffs[i].J_u,
-          .uu = cost_diffs[i].uu + dynamics_diffs[i].J_u.transpose() * v_xx *
-                                       dynamics_diffs[i].J_u,
+          .x = C.x + J_x.transpose() * v_x,
+          .u = C.u + J_u.transpose() * v_x,
+          .xx = C.xx + J_x.transpose() * v_xx * J_x,
+          .xu = C.xu + J_x.transpose() * v_xx * J_u,
+          .uu = C.uu + J_u.transpose() * v_xx * J_u,
       };
 
       const auto Quu_ldlt = Q.uu.ldlt();
+      const FeedbackGains K = -Quu_ldlt.solve(Q.xu.transpose());
+      const typename ModelT::Control::Tangent k = -Quu_ldlt.solve(Q.u);
       ctrl_update_traj.emplace_back(
-          ControlUpdate{.ff_update = -Quu_ldlt.solve(Q.u),
-                        .feedback = -Quu_ldlt.solve(Q.xu.transpose())});
+          ControlUpdate{.ff_update = k, .feedback = K});
 
-      v_x = cost_diffs[i].x - ctrl_update_traj.back().feedback.transpose() *
-                                  cost_diffs[i].uu *
-                                  ctrl_update_traj.back().ff_update;
-      v_xx = cost_diffs[i].xx - ctrl_update_traj.back().feedback.transpose() *
-                                    cost_diffs[i].uu *
-                                    ctrl_update_traj.back().feedback;
+      v_x = C.x - K.transpose() * C.uu * k;
+      v_xx = C.xx - K.transpose() * C.uu * K;
     }
 
     std::reverse(ctrl_update_traj.begin(), ctrl_update_traj.end());
@@ -153,7 +148,7 @@ struct ILQR {
 
     auto step = 1.0;
     for (int i = 0; i < line_search_params_.max_iters; ++i) {
-      const auto new_traj = forward_pass(current_traj, ctrl_update_traj, step);
+      const auto new_traj = forward_sim(current_traj, ctrl_update_traj, step);
       const auto new_cost = cost_trajectory(new_traj);
       if (new_cost - current_cost < step * desired_cost_reduction) {
         return std::make_tuple(new_traj, new_cost, step);
@@ -165,7 +160,7 @@ struct ILQR {
         std::to_string(line_search_params_.max_iters) + "\n");
   }
 
-  Trajectory<ModelT> solve(const Trajectory<ModelT> &current_traj) {}
+  Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) {}
 };
 
 }  // namespace src
