@@ -50,7 +50,7 @@ class ILQRFixture : public ::testing::Test {
   ILQRSolver ilqr_{
       CostFunc{Q_, R_, {N_, State::Identity()}, {N_, Control::Identity()}},
       LineSearchParams{0.5, 0.5, 10},
-      ConvergenceCriteria{.rtol = 1e-9, .atol = 1e-9, .max_iters = 100}};
+      ConvergenceCriteria{.rtol = 1e-12, .atol = 1e-12, .max_iters = 100}};
 };
 
 TEST_F(ILQRFixture, ForwardSimGeneratesCorrectTrajectory) {
@@ -128,8 +128,8 @@ TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {
         current_traj_[i].state.inverse() * opt_traj[i].state;
     const auto current_from_opt_control =
         current_traj_[i].control.inverse() * opt_traj[i].control;
-    EXPECT_LT(current_from_opt_state.log().coeffs().norm(), 1e-5);
-    EXPECT_LT(current_from_opt_control.log().coeffs().norm(), 1e-5);
+    EXPECT_LT(current_from_opt_state.log().coeffs().norm(), 1e-6);
+    EXPECT_LT(current_from_opt_control.log().coeffs().norm(), 1e-6);
   }
 }
 }  // namespace src
