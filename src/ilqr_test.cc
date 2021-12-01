@@ -49,7 +49,8 @@ class ILQRFixture : public ::testing::Test {
 
   ILQRSolver ilqr_{
       CostFunc{Q_, R_, {N_, State::Identity()}, {N_, Control::Identity()}},
-      LineSearchParams{0.5, 0.5, 10}};
+      LineSearchParams{0.5, 0.5, 10},
+      ConvergenceCriteria{.rtol = 1e-9, .atol = 1e-9, .max_iters = 100}};
 };
 
 TEST_F(ILQRFixture, ForwardSimGeneratesCorrectTrajectory) {
@@ -95,8 +96,7 @@ TEST_F(ILQRFixture, BackwardPassReturnsZeroUpdateIfZeroGradient) {
 
 TEST_F(ILQRFixture,
        BackwardsPassExpectedValueReductionIsNegativeIfReductionPossible) {
-  const auto new_traj =
-      ilqr_.forward_sim(current_traj_, ctrl_update_traj_, 1.0);
+  const auto new_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
   std::vector<ILQRSolver::CostDiffs> cost_diffs{N_};
   ilqr_.cost_trajectory(new_traj);
 
@@ -106,7 +106,7 @@ TEST_F(ILQRFixture,
 }
 
 TEST_F(ILQRFixture, LineSearchFindsStepSizeThatReducesCost) {
-  const auto traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_, 1.0);
+  const auto traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
   const auto cost = ilqr_.cost_trajectory(traj);
   const auto [ctrl_update_traj, expected_cost_reduction] =
       ilqr_.backwards_pass(traj);
@@ -116,5 +116,20 @@ TEST_F(ILQRFixture, LineSearchFindsStepSizeThatReducesCost) {
   EXPECT_LT(new_cost - cost,
             expected_cost_reduction *
                 ilqr_.line_search_params_.desired_reduction_frac * step);
+}
+
+TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {
+  const auto initial_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
+  const auto opt_traj = ilqr_.solve(initial_traj);
+
+  ASSERT_EQ(opt_traj.size(), current_traj_.size());
+  for (size_t i = 0; i < opt_traj.size(); ++i) {
+    const auto current_from_opt_state =
+        current_traj_[i].state.inverse() * opt_traj[i].state;
+    const auto current_from_opt_control =
+        current_traj_[i].control.inverse() * opt_traj[i].control;
+    EXPECT_LT(current_from_opt_state.log().coeffs().norm(), 1e-5);
+    EXPECT_LT(current_from_opt_control.log().coeffs().norm(), 1e-5);
+  }
 }
 }  // namespace src

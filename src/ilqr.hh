@@ -35,13 +35,16 @@ struct ConvergenceCriteria {
 
 template <class ModelT>
 struct ILQR {
-  ILQR(CostFunction<ModelT> cost_function, LineSearchParams line_search_params)
+  ILQR(CostFunction<ModelT> cost_function, LineSearchParams line_search_params,
+       ConvergenceCriteria convergence_criteria)
       : cost_function_{std::move(cost_function)},
-        line_search_params_{std::move(line_search_params)} {}
+        line_search_params_{std::move(line_search_params)},
+        convergence_criteria_{std::move(convergence_criteria)} {}
 
   using CostFunc = CostFunction<ModelT>;
   CostFunc cost_function_;
   LineSearchParams line_search_params_;
+  ConvergenceCriteria convergence_criteria_;
 
   using DynamicsDiffs = typename ModelT::DynamicsDifferentials;
   using CostDiffs = typename CostFunction<ModelT>::CostDifferentials;
@@ -160,7 +163,32 @@ struct ILQR {
         std::to_string(line_search_params_.max_iters) + "\n");
   }
 
-  Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) {}
+  Trajectory<ModelT> solve(Trajectory<ModelT> traj) {
+    auto new_cost = cost_trajectory(traj);
+    for (int i = 0; i < convergence_criteria_.max_iters; ++i) {
+      const auto [ctrl_update_traj, expected_cost_reduction] =
+          backwards_pass(traj);
+      const double cost = new_cost;
+      std::tie(traj, new_cost, std::ignore) =
+          line_search(traj, cost, ctrl_update_traj, expected_cost_reduction);
+
+      if (is_converged(cost, new_cost)) {
+        return traj;
+      }
+    }
+    return traj;
+  }
+
+  bool is_converged(const double cost, const double new_cost) {
+    if (std::abs(cost - new_cost) / std::abs(cost) <
+        convergence_criteria_.rtol) {
+      return true;
+    }
+    if (std::abs(cost - new_cost) < convergence_criteria_.atol) {
+      return true;
+    }
+    return false;
+  }
 };
 
 }  // namespace src
