@@ -5,8 +5,6 @@
 
 namespace src {
 
-using Time = std::chrono::time_point<std::chrono::steady_clock>;
-
 template <class ModelT>
 struct TrajectoryPoint {
   double time_s;

@@ -1,4 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 
 cc_library(
     name = "dynamics",
@@ -52,6 +53,36 @@ cc_test(
     srcs = ["trajectory_test.cc"],
     deps = [
         ":trajectory",
+        "@gtest//:gtest_main",
+    ],
+)
+
+proto_library(
+    name = "trajectory_proto",
+    srcs = ["trajectory.proto"],
+)
+
+cc_proto_library(
+    name = "trajectory_cc_proto",
+    deps = [":trajectory_proto"],
+)
+
+cc_library(
+    name = "trajectory_to_proto",
+    srcs = ["trajectory_to_proto.cc"],
+    hdrs = ["trajectory_to_proto.hh"],
+    deps = [
+        ":trajectory",
+        ":trajectory_cc_proto",
+    ],
+)
+
+cc_test(
+    name = "trajectory_to_proto_test",
+    size = "small",
+    srcs = ["trajectory_to_proto_test.cc"],
+    deps = [
+        ":trajectory_to_proto",
         "@gtest//:gtest_main",
     ],
 )

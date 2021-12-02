@@ -175,7 +175,6 @@ struct ILQR {
       if (is_converged(cost, new_cost)) {
         return traj;
       }
-      std::cerr << i << std::endl;
     }
     return traj;
   }

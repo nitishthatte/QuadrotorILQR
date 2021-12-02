@@ -1,2 +1,2 @@
-build --cxxopt -std=gnu++2a
+build --cxxopt -std=c++20
 test --test_output=errors

@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package src.proto;
+
+message Quaternion {
+  double c0 = 1;
+  double c1 = 2;
+  double c2 = 3;
+  double c3 = 4;
+}
+
+message Vec3 {
+  double c0 = 1;
+  double c1 = 2;
+  double c2 = 3;
+}
+
+message SE3 {
+  Vec3 translation = 1;
+  Quaternion rot = 2;
+}
+
+message LieTrajectoryPoint {
+  double time_s = 1;
+  SE3 state = 2;
+  SE3 control = 3;
+}
+
+message LieTrajectory {
+  repeated LieTrajectoryPoint points = 1;
+}
