@@ -8,6 +8,9 @@ filegroup(
 
 cmake(
     name = "manif",
+    cache_entries = {
+        "EIGEN3_INCLUDE_DIR": "$EXT_BUILD_DEPS/include",
+    },
     lib_source = ":all_srcs",
     out_headers_only = True,
     visibility = ["//visibility:public"],

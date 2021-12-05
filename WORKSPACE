@@ -11,15 +11,17 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_r
 http_archive(
     name = "eigen",
     build_file = "@//:third_party/eigen.BUILD",
-    sha256 = "0b73c17efcc4cbe6e689313a950f75281d82d2083683b88330e262dead3f5ce3",
-    url = "https://eigen.googlesource.com/mirror/+archive/refs/heads/3.4.tar.gz",
+    sha256 = "8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72",
+    strip_prefix = "eigen-3.4.0",
+    url = "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz",
 )
 
 ## Gtest ##
 git_repository(
     name = "gtest",
-    branch = "v1.10.x",
+    commit = "703bd9caab50b139428cea1aaff9974ebee5742e",
     remote = "https://github.com/google/googletest",
+    shallow_since = "1570114335 -0400",
 )
 
 ## Micro Lie ##
