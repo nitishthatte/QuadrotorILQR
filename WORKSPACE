@@ -33,6 +33,97 @@ new_git_repository(
     shallow_since = "1632662098 -0400",
 )
 
+## Rules Foreign ##
+http_archive(
+    name = "rules_foreign_cc",
+    sha256 = "69023642d5781c68911beda769f91fcbc8ca48711db935a75da7f6536b65047f",
+    strip_prefix = "rules_foreign_cc-0.6.0",
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.6.0.tar.gz",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+# This sets up some common toolchains for building targets. For more details, please see
+# https://bazelbuild.github.io/rules_foreign_cc/0.6.0/flatten.html#rules_foreign_cc_dependencies
+rules_foreign_cc_dependencies()
+
+http_archive(
+    name = "rules_python",
+    sha256 = "cd6730ed53a002c56ce4e2f396ba3b3be262fd7cb68339f0377a45e8227fe332",
+    url = "https://github.com/bazelbuild/rules_python/releases/download/0.5.0/rules_python-0.5.0.tar.gz",
+)
+
+## Python Interpreter ##
+_configure_python_based_on_os = """
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    ./configure --prefix=$(pwd)/bazel_install --with-openssl=$(brew --prefix openssl)
+else
+    ./configure --prefix=$(pwd)/bazel_install
+fi
+"""
+
+http_archive(
+    name = "python_interpreter",
+    build_file_content = """
+exports_files(["python_bin"])
+filegroup(
+    name = "files",
+    srcs = glob(["bazel_install/**"], exclude = ["**/* *"]),
+    visibility = ["//visibility:public"],
+)
+""",
+    patch_cmds = [
+        "mkdir $(pwd)/bazel_install",
+        _configure_python_based_on_os,
+        "make",
+        "make install",
+        "ln -s bazel_install/bin/python3 python_bin",
+    ],
+    #sha256 = "b1d3a76420375343b5e8a22fceb1ac65b77193e9ed27146524f0a9db058728ea",
+    strip_prefix = "Python-3.9.9",
+    urls = ["https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz"],
+)
+
+register_toolchains("//:py_3_toolchain")
+
+# Create a central external repo, @my_deps, that contains Bazel targets for all the
+# third-party packages specified in the requirements.txt file.
+load("@rules_python//python:pip.bzl", "pip_parse")
+
+pip_parse(
+    name = "py_deps",
+    python_interpreter_target = "@python_interpreter//:python_bin",
+    requirements_lock = "//:requirements.txt",
+)
+
+# Load the starlark macro which will define your dependencies.
+load("@py_deps//:requirements.bzl", "install_deps")
+
+# Call it to define repos for your requirements.
+install_deps()
+
+## Pybind ##
+git_repository(
+    name = "pybind11_bazel",
+    commit = "72cbbf1fbc830e487e3012862b7b720001b70672",
+    remote = "https://github.com/pybind/pybind11_bazel",
+    shallow_since = "1638580149 -0800",
+)
+
+http_archive(
+    name = "pybind11",
+    build_file = "@pybind11_bazel//:pybind11.BUILD",
+    sha256 = "f1bcc07caa568eb312411dde5308b1e250bd0e1bc020fae855bf9f43209940cc",
+    strip_prefix = "pybind11-2.8.1",
+    urls = ["https://github.com/pybind/pybind11/archive/refs/tags/v2.8.1.tar.gz"],
+)
+
+load("@pybind11_bazel//:python_configure.bzl", "python_configure")
+
+python_configure(
+    name = "local_config_python",
+)
+
 ## Protobuf ##
 http_archive(
     name = "rules_proto",
@@ -49,17 +140,3 @@ load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_
 rules_proto_dependencies()
 
 rules_proto_toolchains()
-
-## Rules Foreign ##
-http_archive(
-    name = "rules_foreign_cc",
-    sha256 = "69023642d5781c68911beda769f91fcbc8ca48711db935a75da7f6536b65047f",
-    strip_prefix = "rules_foreign_cc-0.6.0",
-    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/0.6.0.tar.gz",
-)
-
-load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
-
-# This sets up some common toolchains for building targets. For more details, please see
-# https://bazelbuild.github.io/rules_foreign_cc/0.6.0/flatten.html#rules_foreign_cc_dependencies
-rules_foreign_cc_dependencies()
