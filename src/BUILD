@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//src/common:custom_rules.bzl", "proto_lib_collection")
 
 cc_library(
     name = "dynamics",
@@ -57,14 +57,10 @@ cc_test(
     ],
 )
 
-proto_library(
+proto_lib_collection(
     name = "trajectory_proto",
     srcs = ["trajectory.proto"],
-)
-
-cc_proto_library(
-    name = "trajectory_cc_proto",
-    deps = [":trajectory_proto"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(

@@ -140,3 +140,11 @@ load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_
 rules_proto_dependencies()
 
 rules_proto_toolchains()
+
+http_archive(
+    name = "com_google_protobuf",
+    strip_prefix = "protobuf-3.19.1",
+    urls = [
+        "https://github.com/protocolbuffers/protobuf/releases/download/v3.19.1/protobuf-all-3.19.1.tar.gz",
+    ],
+)

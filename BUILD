@@ -33,5 +33,6 @@ py_binary(
     data = ["pybind_example.so"],
     deps = [
         requirement("ipython"),
+        "//src:trajectory_py_proto",
     ],
 )
