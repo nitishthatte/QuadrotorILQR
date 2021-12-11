@@ -1,5 +1,4 @@
 load("@rules_python//python:defs.bzl", "py_binary", "py_runtime", "py_runtime_pair")
-load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 load("@py_deps//:requirements.bzl", "requirement")
 
 py_runtime(
@@ -22,15 +21,12 @@ toolchain(
     toolchain_type = "@bazel_tools//tools/python:toolchain_type",
 )
 
-pybind_extension(
-    name = "pybind_example",
-    srcs = ["pybind_example.cc"],
-)
-
 py_binary(
     name = "irepl",
     srcs = ["irepl.py"],
-    data = ["pybind_example.so"],
+    data = [
+        "//src:ilqr_binding.so",
+    ],
     deps = [
         requirement("ipython"),
         "//src:trajectory_py_proto",

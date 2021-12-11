@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//src/common:custom_rules.bzl", "proto_lib_collection")
+load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 
 cc_library(
     name = "dynamics",
@@ -100,5 +101,16 @@ cc_test(
     deps = [
         ":ilqr",
         "@gtest//:gtest_main",
+    ],
+)
+
+pybind_extension(
+    name = "ilqr_binding",
+    srcs = ["ilqr_binding.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":ilqr",
+        ":trajectory_cc_proto",
+        "//src/common:pybind_cast",
     ],
 )
