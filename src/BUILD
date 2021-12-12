@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//src/common:custom_rules.bzl", "proto_lib_collection")
+load("//src/common:custom_rules.bzl", "irepl", "proto_lib_collection")
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 
 cc_library(
@@ -26,6 +26,7 @@ cc_library(
     hdrs = ["cost.hh"],
     deps = [
         ":dynamics",
+        ":trajectory",
         "@com_github_artivis_manif//:manif",
     ],
 )
@@ -85,11 +86,17 @@ cc_test(
 )
 
 cc_library(
+    name = "ilqr_options",
+    hdrs = ["ilqr_options.hh"],
+)
+
+cc_library(
     name = "ilqr",
     hdrs = ["ilqr.hh"],
     deps = [
         ":cost",
         ":dynamics",
+        ":ilqr_options",
         ":trajectory",
     ],
 )
@@ -112,5 +119,15 @@ pybind_extension(
         ":ilqr",
         ":trajectory_cc_proto",
         "//src/common:pybind_cast",
+    ],
+)
+
+irepl(
+    name = "ilqr_irepl",
+    data = [
+        "//src:ilqr_binding.so",
+    ],
+    deps = [
+        "//src:trajectory_py_proto",
     ],
 )

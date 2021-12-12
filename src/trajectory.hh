@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "src/dynamics.hh"
 
 namespace src {

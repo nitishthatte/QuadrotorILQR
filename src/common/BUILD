@@ -6,3 +6,5 @@ cc_library(
         "@pybind11",
     ],
 )
+
+exports_files(["irepl.py"])

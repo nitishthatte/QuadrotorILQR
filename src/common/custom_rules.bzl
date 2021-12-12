@@ -1,5 +1,7 @@
 """Custom Bazel Rules"""
 
+load("@py_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_binary")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
@@ -40,4 +42,15 @@ def proto_lib_collection(name, srcs, deps = [], visibility = None):
         srcs = srcs,
         deps = deps + ["@com_google_protobuf//:protobuf_python"],
         visibility = visibility,
+    )
+
+def irepl(name, data = [], deps = []):
+    py_binary(
+        name = name,
+        srcs = ["//src/common:irepl.py"],
+        main = "//src/common:irepl.py",
+        data = data,
+        deps = [
+            requirement("ipython"),
+        ] + deps,
     )

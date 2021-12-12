@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "src/dynamics.hh"
+#include "src/trajectory.hh"
 
 namespace src {
 
@@ -28,18 +29,16 @@ class CostFunction {
   };
 
   CostFunction(CostHessianStateState Q, CostHessianControlControl R,
-               std::vector<typename ModelT::State> desired_states,
-               std::vector<typename ModelT::Control> desired_controls)
+               Trajectory<ModelT> desired_trajectory)
       : Q_{std::move(Q)},
         R_{std::move(R)},
-        desired_states_{std::move(desired_states)},
-        desired_controls_{std::move(desired_controls)} {}
+        desired_trajectory_{std::move(desired_trajectory)} {}
 
   double operator()(const typename ModelT::State &x,
                     const typename ModelT::Control &u, const int i,
                     CostDifferentials *diffs = nullptr) const {
-    const auto &x_d = desired_states_.at(i);
-    const auto &u_d = desired_controls_.at(i);
+    const auto &x_d = desired_trajectory_.at(i).state;
+    const auto &u_d = desired_trajectory_.at(i).control;
 
     typename ModelT::State::Tangent::Jacobian J_delta_x, J_delta_u;
     const auto delta_x = x.minus(x_d, J_delta_x);
@@ -64,7 +63,6 @@ class CostFunction {
  private:
   CostHessianStateState Q_;
   CostHessianControlControl R_;
-  std::vector<typename ModelT::State> desired_states_;
-  std::vector<typename ModelT::Control> desired_controls_;
+  Trajectory<ModelT> desired_trajectory_;
 };
 }  // namespace src

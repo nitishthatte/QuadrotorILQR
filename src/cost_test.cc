@@ -10,6 +10,14 @@ using Control = LieDynamics::Control;
 constexpr auto CONTROL_DIM = LieDynamics::CONTROL_DIM;
 using CostFunc = CostFunction<LieDynamics>;
 
+namespace {
+Trajectory<LieDynamics> create_identity_traj() {
+  return {{.time_s = 0.0,
+           .state = State::Identity(),
+           .control = Control::Identity()}};
+}
+}  // namespace
+
 TEST(ComputeCost, ReturnsZeroCostWhenZeroError) {
   const auto x = State::Identity();
   const auto u = Control::Identity();
@@ -18,8 +26,7 @@ TEST(ComputeCost, ReturnsZeroCostWhenZeroError) {
   const CostFunc::CostHessianControlControl R =
       CostFunc::CostHessianStateState::Identity();
 
-  const auto compute_cost =
-      CostFunc(Q, R, {State::Identity()}, {Control::Identity()});
+  const auto compute_cost = CostFunc(Q, R, create_identity_traj());
 
   const auto cost = compute_cost(x, u, 0);
 
@@ -29,8 +36,7 @@ TEST(ComputeCost, ReturnsZeroCostWhenZeroError) {
 class ComputeCostDifferentials : public ::testing::Test {
  protected:
   ComputeCostDifferentials()
-      : compute_cost_{
-            CostFunc(Q_, R_, {State::Identity()}, {Control::Identity()})} {
+      : compute_cost_{CostFunc(Q_, R_, create_identity_traj())} {
     auto x_log = State::Tangent::Zero();
     x_log.coeffs() = Eigen::Vector<double, 6>{1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
     x_ = x_log.exp();

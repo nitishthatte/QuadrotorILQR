@@ -1,5 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_binary", "py_runtime", "py_runtime_pair")
-load("@py_deps//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_runtime", "py_runtime_pair")
 
 py_runtime(
     name = "python3_runtime",
@@ -19,16 +18,4 @@ toolchain(
     name = "py_3_toolchain",
     toolchain = ":py_runtime_pair",
     toolchain_type = "@bazel_tools//tools/python:toolchain_type",
-)
-
-py_binary(
-    name = "irepl",
-    srcs = ["irepl.py"],
-    data = [
-        "//src:ilqr_binding.so",
-    ],
-    deps = [
-        requirement("ipython"),
-        "//src:trajectory_py_proto",
-    ],
 )

@@ -14,20 +14,26 @@ using DynamicsDifferentials = LieDynamics::DynamicsDifferentials;
 using ILQRSolver = ILQR<LieDynamics>;
 using CostFunc = CostFunction<LieDynamics>;
 
+namespace {
+Trajectory<LieDynamics> create_identity_traj(const int num_pts,
+                                             const double dt_s) {
+  Trajectory<LieDynamics> traj;
+  traj.reserve(num_pts);
+  double time_s = 0.0;
+  for (int i = 0; i < num_pts; ++i) {
+    traj.emplace_back(
+        TrajectoryPoint<LieDynamics>{.time_s = time_s,
+                                     .state = State::Identity(),
+                                     .control = Control::Identity()});
+    time_s += dt_s;
+  }
+  return traj;
+}
+}  // namespace
+
 class ILQRFixture : public ::testing::Test {
  protected:
   ILQRFixture() {
-    current_traj_ =
-        Trajectory<LieDynamics>{N_,
-                                {.time_s = 0.0,
-                                 .state = LieDynamics::State::Identity(),
-                                 .control = LieDynamics::Control::Identity()}};
-    auto time_s = 0.0;
-    for (auto &pt : current_traj_) {
-      pt.time_s = time_s;
-      time_s += dt_s_;
-    }
-
     Control::Tangent delta_u = Control::Tangent::Zero();
     delta_u.coeffs()(0) = 1.0;  // delta-x-pos
     ctrl_update_traj_ = ILQRSolver::ControlUpdateTrajectory{
@@ -38,18 +44,17 @@ class ILQRFixture : public ::testing::Test {
 
   size_t N_ = 3;
   double dt_s_ = 0.1;
-  Trajectory<LieDynamics> current_traj_;
   ILQRSolver::ControlUpdateTrajectory ctrl_update_traj_;
 
-  // create cost function
+  // create cost function inputs
   CostFunc::CostHessianStateState Q_ =
       CostFunc::CostHessianStateState::Identity();
   CostFunc::CostHessianControlControl R_ =
       CostFunc::CostHessianStateState::Identity();
+  Trajectory<LieDynamics> current_traj_ = create_identity_traj(N_, dt_s_);
 
   ILQRSolver ilqr_{
-      CostFunc{Q_, R_, {N_, State::Identity()}, {N_, Control::Identity()}},
-      LineSearchParams{0.5, 0.5, 10},
+      CostFunc{Q_, R_, current_traj_}, LineSearchParams{0.5, 0.5, 10},
       ConvergenceCriteria{.rtol = 1e-12, .atol = 1e-12, .max_iters = 100}};
 };
 
