@@ -12,16 +12,13 @@ namespace src {
 
 template <class ModelT>
 struct ILQR {
-  ILQR(CostFunction<ModelT> cost_function, LineSearchParams line_search_params,
-       ConvergenceCriteria convergence_criteria)
+  ILQR(CostFunction<ModelT> cost_function, ILQROptions options)
       : cost_function_{std::move(cost_function)},
-        line_search_params_{std::move(line_search_params)},
-        convergence_criteria_{std::move(convergence_criteria)} {}
+        options_{std::move(options)} {}
 
   using CostFunc = CostFunction<ModelT>;
   CostFunc cost_function_;
-  LineSearchParams line_search_params_;
-  ConvergenceCriteria convergence_criteria_;
+  ILQROptions options_;
 
   using DynamicsDiffs = typename ModelT::DynamicsDifferentials;
   using CostDiffs = typename CostFunction<ModelT>::CostDifferentials;
@@ -124,26 +121,27 @@ struct ILQR {
       const double expected_cost_reduction) const {
     assert(expected_cost_reduction <= 0);
     const auto desired_cost_reduction =
-        line_search_params_.desired_reduction_frac * expected_cost_reduction;
+        options_.line_search_params.desired_reduction_frac *
+        expected_cost_reduction;
 
     auto step = 1.0;
-    for (int i = 0; i < line_search_params_.max_iters; ++i) {
+    for (int i = 0; i < options_.line_search_params.max_iters; ++i) {
       const auto new_traj = forward_sim(current_traj, ctrl_update_traj, step);
       const auto new_cost = cost_trajectory(new_traj);
       if (new_cost - current_cost < step * desired_cost_reduction) {
         return std::make_tuple(new_traj, new_cost, step);
       }
-      step *= line_search_params_.step_update;
+      step *= options_.line_search_params.step_update;
     }
     throw std::runtime_error(
         "Reached maximum number of line search iterations, " +
-        std::to_string(line_search_params_.max_iters) + "\n");
+        std::to_string(options_.line_search_params.max_iters) + "\n");
   }
 
   Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) {
     auto traj = initial_traj;
     auto new_cost = cost_trajectory(traj);
-    for (int i = 0; i < convergence_criteria_.max_iters; ++i) {
+    for (int i = 0; i < options_.convergence_criteria.max_iters; ++i) {
       const auto [ctrl_update_traj, expected_cost_reduction] =
           backwards_pass(traj);
       const double cost = new_cost;
@@ -159,10 +157,10 @@ struct ILQR {
 
   bool is_converged(const double cost, const double new_cost) {
     if (std::abs(cost - new_cost) / std::abs(cost) <
-        convergence_criteria_.rtol) {
+        options_.convergence_criteria.rtol) {
       return true;
     }
-    if (std::abs(cost - new_cost) < convergence_criteria_.atol) {
+    if (std::abs(cost - new_cost) < options_.convergence_criteria.atol) {
       return true;
     }
     return false;

@@ -62,7 +62,6 @@ cc_test(
 proto_lib_collection(
     name = "trajectory_proto",
     srcs = ["trajectory.proto"],
-    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -87,7 +86,43 @@ cc_test(
 
 cc_library(
     name = "ilqr_options",
+    srcs = ["ilqr_options.cc"],
     hdrs = ["ilqr_options.hh"],
+)
+
+cc_test(
+    name = "ilqr_options_test",
+    size = "small",
+    srcs = ["ilqr_options_test.cc"],
+    deps = [
+        ":ilqr_options",
+        "@gtest//:gtest_main",
+    ],
+)
+
+proto_lib_collection(
+    name = "ilqr_options_proto",
+    srcs = ["ilqr_options.proto"],
+)
+
+cc_library(
+    name = "ilqr_options_to_proto",
+    srcs = ["ilqr_options_to_proto.cc"],
+    hdrs = ["ilqr_options_to_proto.hh"],
+    deps = [
+        ":ilqr_options",
+        ":ilqr_options_cc_proto",
+    ],
+)
+
+cc_test(
+    name = "ilqr_options_to_proto_test",
+    size = "small",
+    srcs = ["ilqr_options_to_proto_test.cc"],
+    deps = [
+        ":ilqr_options_to_proto",
+        "@gtest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -114,7 +149,6 @@ cc_test(
 pybind_extension(
     name = "ilqr_binding",
     srcs = ["ilqr_binding.cc"],
-    visibility = ["//visibility:public"],
     deps = [
         ":ilqr",
         ":trajectory_cc_proto",

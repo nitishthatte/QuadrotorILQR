@@ -7,7 +7,7 @@
 
 namespace src {
 
-proto::SE3 to_proto(const manif::SE3d transform) {
+proto::SE3 to_proto(const manif::SE3d &transform) {
   proto::SE3 proto_transform{};
   proto_transform.mutable_rot()->set_c0(transform.quat().coeffs()[3]);
   proto_transform.mutable_rot()->set_c1(transform.quat().coeffs()[0]);
@@ -21,7 +21,7 @@ proto::SE3 to_proto(const manif::SE3d transform) {
   return proto_transform;
 }
 
-manif::SE3d from_proto(const proto::SE3 proto_transform) {
+manif::SE3d from_proto(const proto::SE3 &proto_transform) {
   Eigen::Vector3d translation{{proto_transform.translation().c0(),
                                proto_transform.translation().c1(),
                                proto_transform.translation().c2()}};
@@ -31,7 +31,7 @@ manif::SE3d from_proto(const proto::SE3 proto_transform) {
   return manif::SE3d{translation, quat};
 }
 
-proto::LieTrajectoryPoint to_proto(const TrajectoryPoint<LieDynamics> pt) {
+proto::LieTrajectoryPoint to_proto(const TrajectoryPoint<LieDynamics> &pt) {
   proto::LieTrajectoryPoint proto_pt{};
   proto_pt.set_time_s(pt.time_s);
   *proto_pt.mutable_state() = to_proto(pt.state);
@@ -39,26 +39,26 @@ proto::LieTrajectoryPoint to_proto(const TrajectoryPoint<LieDynamics> pt) {
   return proto_pt;
 }
 TrajectoryPoint<LieDynamics> from_proto(
-    const proto::LieTrajectoryPoint proto_pt) {
+    const proto::LieTrajectoryPoint &proto_pt) {
   return {.time_s = proto_pt.time_s(),
           .state = from_proto(proto_pt.state()),
           .control = from_proto(proto_pt.control())};
 }
 
-proto::LieTrajectory to_proto(const Trajectory<LieDynamics> traj) {
+proto::LieTrajectory to_proto(const Trajectory<LieDynamics> &traj) {
   proto::LieTrajectory proto_traj;
-  for (const auto& pt : traj) {
+  for (const auto &pt : traj) {
     auto pt_ptr = proto_traj.add_points();
     *pt_ptr = to_proto(pt);
   }
   return proto_traj;
 }
 
-Trajectory<LieDynamics> from_proto(const proto::LieTrajectory proto_traj) {
+Trajectory<LieDynamics> from_proto(const proto::LieTrajectory &proto_traj) {
   Trajectory<LieDynamics> traj;
   std::transform(proto_traj.points().cbegin(), proto_traj.points().cend(),
                  std::back_inserter(traj),
-                 [](const auto& proto_pt) { return from_proto(proto_pt); });
+                 [](const auto &proto_pt) { return from_proto(proto_pt); });
   return traj;
 }
 

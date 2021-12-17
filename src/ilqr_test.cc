@@ -54,8 +54,10 @@ class ILQRFixture : public ::testing::Test {
   Trajectory<LieDynamics> current_traj_ = create_identity_traj(N_, dt_s_);
 
   ILQRSolver ilqr_{
-      CostFunc{Q_, R_, current_traj_}, LineSearchParams{0.5, 0.5, 10},
-      ConvergenceCriteria{.rtol = 1e-12, .atol = 1e-12, .max_iters = 100}};
+      CostFunc{Q_, R_, current_traj_},
+      ILQROptions{.line_search_params = LineSearchParams{0.5, 0.5, 10},
+                  .convergence_criteria = {
+                      .rtol = 1e-12, .atol = 1e-12, .max_iters = 100}}};
 };
 
 TEST_F(ILQRFixture, ForwardSimGeneratesCorrectTrajectory) {
@@ -120,7 +122,8 @@ TEST_F(ILQRFixture, LineSearchFindsStepSizeThatReducesCost) {
 
   EXPECT_LT(new_cost - cost,
             expected_cost_reduction *
-                ilqr_.line_search_params_.desired_reduction_frac * step);
+                ilqr_.options_.line_search_params.desired_reduction_frac *
+                step);
 }
 
 TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {
