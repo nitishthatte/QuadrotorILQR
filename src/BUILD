@@ -1,6 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//src/common:custom_rules.bzl", "irepl", "proto_lib_collection")
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
+load("@py_deps//:requirements.bzl", "requirement")
 
 cc_library(
     name = "dynamics",
@@ -147,21 +148,40 @@ cc_test(
 )
 
 pybind_extension(
-    name = "ilqr_binding",
-    srcs = ["ilqr_binding.cc"],
+    name = "lie_ilqr_binding",
+    srcs = ["lie_ilqr_binding.cc"],
     deps = [
         ":ilqr",
+        ":ilqr_options_cc_proto",
+        ":ilqr_options_to_proto",
         ":trajectory_cc_proto",
+        ":trajectory_to_proto",
         "//src/common:pybind_cast",
     ],
 )
 
 irepl(
-    name = "ilqr_irepl",
+    name = "lie_ilqr_irepl",
     data = [
-        "//src:ilqr_binding.so",
+        ":lie_ilqr_binding.so",
     ],
     deps = [
-        "//src:trajectory_py_proto",
+        ":ilqr_options_py_proto",
+        ":trajectory_py_proto",
+        requirement("numpy"),
+    ],
+)
+
+py_binary(
+    name = "lie_ilqr",
+    srcs = ["lie_ilqr.py"],
+    data = [
+        ":lie_ilqr_binding.so",
+    ],
+    deps = [
+        ":ilqr_options_py_proto",
+        ":trajectory_py_proto",
+        requirement("numpy"),
+        requirement("matplotlib"),
     ],
 )

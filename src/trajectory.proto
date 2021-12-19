@@ -3,10 +3,10 @@ syntax = "proto3";
 package src.proto;
 
 message Quaternion {
-  double c0 = 1;
-  double c1 = 2;
-  double c2 = 3;
-  double c3 = 4;
+  double w = 1;
+  double x = 2;
+  double y = 3;
+  double z = 4;
 }
 
 message Vec3 {

@@ -9,10 +9,10 @@ namespace src {
 
 proto::SE3 to_proto(const manif::SE3d &transform) {
   proto::SE3 proto_transform{};
-  proto_transform.mutable_rot()->set_c0(transform.quat().coeffs()[3]);
-  proto_transform.mutable_rot()->set_c1(transform.quat().coeffs()[0]);
-  proto_transform.mutable_rot()->set_c2(transform.quat().coeffs()[1]);
-  proto_transform.mutable_rot()->set_c3(transform.quat().coeffs()[2]);
+  proto_transform.mutable_rot()->set_w(transform.quat().coeffs()[3]);
+  proto_transform.mutable_rot()->set_x(transform.quat().coeffs()[0]);
+  proto_transform.mutable_rot()->set_y(transform.quat().coeffs()[1]);
+  proto_transform.mutable_rot()->set_z(transform.quat().coeffs()[2]);
 
   proto_transform.mutable_translation()->set_c0(transform.translation()[0]);
   proto_transform.mutable_translation()->set_c1(transform.translation()[1]);
@@ -25,9 +25,8 @@ manif::SE3d from_proto(const proto::SE3 &proto_transform) {
   Eigen::Vector3d translation{{proto_transform.translation().c0(),
                                proto_transform.translation().c1(),
                                proto_transform.translation().c2()}};
-  Eigen::Quaterniond quat{
-      proto_transform.rot().c0(), proto_transform.rot().c1(),
-      proto_transform.rot().c2(), proto_transform.rot().c3()};
+  Eigen::Quaterniond quat{proto_transform.rot().w(), proto_transform.rot().x(),
+                          proto_transform.rot().y(), proto_transform.rot().z()};
   return manif::SE3d{translation, quat};
 }
 

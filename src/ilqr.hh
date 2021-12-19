@@ -33,29 +33,21 @@ struct ILQR {
 
   using ControlUpdateTrajectory = std::vector<ControlUpdate>;
 
-  Trajectory<ModelT> forward_sim(
-      const Trajectory<ModelT> &current_traj,
-      const ControlUpdateTrajectory &ctrl_update_traj,
-      const double line_search_alpha = 1.0) const {
-    Trajectory<ModelT> updated_traj;
-    updated_traj.reserve(current_traj.size());
+  Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) {
+    auto traj = initial_traj;
+    auto new_cost = cost_trajectory(traj);
+    for (int i = 0; i < options_.convergence_criteria.max_iters; ++i) {
+      const auto [ctrl_update_traj, expected_cost_reduction] =
+          backwards_pass(traj);
+      const double cost = new_cost;
+      std::tie(traj, new_cost, std::ignore) =
+          line_search(traj, cost, ctrl_update_traj, expected_cost_reduction);
 
-    auto state = current_traj.front().state;
-    for (int i = 0; i < current_traj.size(); ++i) {
-      auto control =
-          current_traj[i].control +
-          line_search_alpha * ctrl_update_traj[i].ff_update +
-          ctrl_update_traj[i].feedback * (state - current_traj[i].state);
-
-      updated_traj.emplace_back(
-          TrajectoryPoint<ModelT>{.time_s = current_traj[i].time_s,
-                                  .state = state,
-                                  .control = control});
-
-      state = ModelT::dynamics(state, control);
+      if (is_converged(cost, new_cost)) {
+        return traj;
+      }
     }
-
-    return updated_traj;
+    return traj;
   }
 
   double cost_trajectory(const Trajectory<ModelT> &traj) const {
@@ -115,6 +107,31 @@ struct ILQR {
     return std::make_pair(ctrl_update_traj, delta_v);
   }
 
+  Trajectory<ModelT> forward_sim(
+      const Trajectory<ModelT> &current_traj,
+      const ControlUpdateTrajectory &ctrl_update_traj,
+      const double line_search_alpha = 1.0) const {
+    Trajectory<ModelT> updated_traj;
+    updated_traj.reserve(current_traj.size());
+
+    auto state = current_traj.front().state;
+    for (int i = 0; i < current_traj.size(); ++i) {
+      auto control =
+          current_traj[i].control +
+          line_search_alpha * ctrl_update_traj[i].ff_update +
+          ctrl_update_traj[i].feedback * (state - current_traj[i].state);
+
+      updated_traj.emplace_back(
+          TrajectoryPoint<ModelT>{.time_s = current_traj[i].time_s,
+                                  .state = state,
+                                  .control = control});
+
+      state = ModelT::dynamics(state, control);
+    }
+
+    return updated_traj;
+  }
+
   std::tuple<Trajectory<ModelT>, double, double> line_search(
       const Trajectory<ModelT> &current_traj, const double current_cost,
       const ControlUpdateTrajectory &ctrl_update_traj,
@@ -136,23 +153,6 @@ struct ILQR {
     throw std::runtime_error(
         "Reached maximum number of line search iterations, " +
         std::to_string(options_.line_search_params.max_iters) + "\n");
-  }
-
-  Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) {
-    auto traj = initial_traj;
-    auto new_cost = cost_trajectory(traj);
-    for (int i = 0; i < options_.convergence_criteria.max_iters; ++i) {
-      const auto [ctrl_update_traj, expected_cost_reduction] =
-          backwards_pass(traj);
-      const double cost = new_cost;
-      std::tie(traj, new_cost, std::ignore) =
-          line_search(traj, cost, ctrl_update_traj, expected_cost_reduction);
-
-      if (is_converged(cost, new_cost)) {
-        return traj;
-      }
-    }
-    return traj;
   }
 
   bool is_converged(const double cost, const double new_cost) {
