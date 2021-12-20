@@ -9,6 +9,18 @@
 #include "src/trajectory.hh"
 
 namespace src {
+namespace detail {
+struct CostReductionTerms {
+  double QuTk = 0;
+  double kTQuuk = 0;
+};
+
+inline double calculate_cost_reduction(
+    const CostReductionTerms &cost_reduction_terms, const double step = 1.0) {
+  return step * cost_reduction_terms.QuTk +
+         step * step * cost_reduction_terms.kTQuuk / 2.0;
+}
+}  // namespace detail
 
 template <class ModelT>
 struct ILQR {
@@ -33,15 +45,23 @@ struct ILQR {
 
   using ControlUpdateTrajectory = std::vector<ControlUpdate>;
 
-  Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) {
+  Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) const {
     auto traj = initial_traj;
     auto new_cost = cost_trajectory(traj);
     for (int i = 0; i < options_.convergence_criteria.max_iters; ++i) {
-      const auto [ctrl_update_traj, expected_cost_reduction] =
+      const auto [ctrl_update_traj, cost_reduction_terms] =
           backwards_pass(traj);
       const double cost = new_cost;
+
+      // if expected cost reduction of this line search is small, return
+      const auto expected_new_cost =
+          cost + detail::calculate_cost_reduction(cost_reduction_terms);
+      if (is_converged(cost, expected_new_cost)) {
+        return traj;
+      }
+
       std::tie(traj, new_cost, std::ignore) =
-          line_search(traj, cost, ctrl_update_traj, expected_cost_reduction);
+          line_search(traj, cost, ctrl_update_traj, cost_reduction_terms);
 
       if (is_converged(cost, new_cost)) {
         return traj;
@@ -58,7 +78,7 @@ struct ILQR {
     return cost;
   }
 
-  std::pair<ControlUpdateTrajectory, double> backwards_pass(
+  std::pair<ControlUpdateTrajectory, detail::CostReductionTerms> backwards_pass(
       const Trajectory<ModelT> &traj) const {
     ControlUpdateTrajectory ctrl_update_traj;
     const auto num_pts = traj.size();
@@ -69,6 +89,7 @@ struct ILQR {
     typename CostFunc::CostHessianStateState v_xx =
         CostFunc::CostHessianStateState::Zero();
     typename CostFunc::CostDifferentials Q;
+    detail::CostReductionTerms cost_reduction_terms{};
     for (int i = num_pts - 1; i >= 0; --i) {
       DynamicsDiffs dynamics_diffs;
       ModelT::dynamics(traj[i].state, traj[i].control, &dynamics_diffs);
@@ -91,20 +112,21 @@ struct ILQR {
       ctrl_update_traj.emplace_back(
           ControlUpdate{.ff_update = k, .feedback = K});
 
-      v_x = C.x - K.transpose() * C.uu * k;
-      v_xx = C.xx - K.transpose() * C.uu * K;
+      v_x = Q.x - K.transpose() * Q.uu * k;
+      v_xx = Q.xx - K.transpose() * Q.uu * K;
+
+      // expected cost reduction
+      const typename ModelT::Control::Tangent &ff_update =
+          ctrl_update_traj.back().ff_update;
+      cost_reduction_terms.QuTk += (Q.u.transpose() * ff_update.coeffs())(0);
+      cost_reduction_terms.kTQuuk +=
+          (ff_update.coeffs().transpose() * Q.uu * ff_update.coeffs())(0);
     }
 
     std::reverse(ctrl_update_traj.begin(), ctrl_update_traj.end());
 
-    // expected value reduction
-    const typename ModelT::Control::Tangent &ff_update =
-        ctrl_update_traj.front().ff_update;
-    const double delta_v =
-        (Q.u.transpose() * ff_update.coeffs() +
-         0.5 * ff_update.coeffs().transpose() * Q.uu * ff_update.coeffs())(0);
-
-    return std::make_pair(ctrl_update_traj, delta_v);
+    return std::make_pair(std::move(ctrl_update_traj),
+                          std::move(cost_reduction_terms));
   }
 
   Trajectory<ModelT> forward_sim(
@@ -135,17 +157,16 @@ struct ILQR {
   std::tuple<Trajectory<ModelT>, double, double> line_search(
       const Trajectory<ModelT> &current_traj, const double current_cost,
       const ControlUpdateTrajectory &ctrl_update_traj,
-      const double expected_cost_reduction) const {
-    assert(expected_cost_reduction <= 0);
-    const auto desired_cost_reduction =
-        options_.line_search_params.desired_reduction_frac *
-        expected_cost_reduction;
-
+      const detail::CostReductionTerms &cost_reduction_terms) const {
     auto step = 1.0;
     for (int i = 0; i < options_.line_search_params.max_iters; ++i) {
       const auto new_traj = forward_sim(current_traj, ctrl_update_traj, step);
       const auto new_cost = cost_trajectory(new_traj);
-      if (new_cost - current_cost < step * desired_cost_reduction) {
+      const auto desired_cost_reduction =
+          options_.line_search_params.desired_reduction_frac *
+          detail::calculate_cost_reduction(cost_reduction_terms, step);
+
+      if (new_cost - current_cost < desired_cost_reduction) {
         return std::make_tuple(new_traj, new_cost, step);
       }
       step *= options_.line_search_params.step_update;
@@ -155,7 +176,7 @@ struct ILQR {
         std::to_string(options_.line_search_params.max_iters) + "\n");
   }
 
-  bool is_converged(const double cost, const double new_cost) {
+  bool is_converged(const double cost, const double new_cost) const {
     if (std::abs(cost - new_cost) / std::abs(cost) <
         options_.convergence_criteria.rtol) {
       return true;

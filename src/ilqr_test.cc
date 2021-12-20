@@ -91,11 +91,12 @@ TEST_F(ILQRFixture, CostTrajectoryCalculatesCorrectCost) {
 }
 
 TEST_F(ILQRFixture, BackwardPassReturnsZeroUpdateIfZeroGradient) {
-  const auto [ctrl_traj_update, expected_cost_reduction] =
+  const auto [ctrl_traj_update, cost_reduction_terms] =
       ilqr_.backwards_pass(current_traj_);
 
   EXPECT_EQ(ctrl_traj_update.size(), N_);
-  EXPECT_EQ(expected_cost_reduction, 0.0);
+  EXPECT_EQ(cost_reduction_terms.QuTk, 0.0);
+  EXPECT_EQ(cost_reduction_terms.kTQuuk, 0.0);
   for (const auto &ctrl_update : ctrl_traj_update) {
     EXPECT_EQ(ctrl_update.ff_update, Control::Tangent::Zero());
   }
@@ -107,23 +108,22 @@ TEST_F(ILQRFixture,
   std::vector<ILQRSolver::CostDiffs> cost_diffs{N_};
   ilqr_.cost_trajectory(new_traj);
 
-  const auto expected_cost_reduction = ilqr_.backwards_pass(new_traj).second;
+  const auto cost_reduction_terms = ilqr_.backwards_pass(new_traj).second;
 
-  EXPECT_LT(expected_cost_reduction, 0.0);
+  EXPECT_LT(cost_reduction_terms.QuTk, 0.0);
 }
 
 TEST_F(ILQRFixture, LineSearchFindsStepSizeThatReducesCost) {
   const auto traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
   const auto cost = ilqr_.cost_trajectory(traj);
-  const auto [ctrl_update_traj, expected_cost_reduction] =
+  const auto [ctrl_update_traj, cost_reduction_terms] =
       ilqr_.backwards_pass(traj);
   const auto [new_traj, new_cost, step] =
-      ilqr_.line_search(traj, cost, ctrl_update_traj, expected_cost_reduction);
+      ilqr_.line_search(traj, cost, ctrl_update_traj, cost_reduction_terms);
 
   EXPECT_LT(new_cost - cost,
-            expected_cost_reduction *
-                ilqr_.options_.line_search_params.desired_reduction_frac *
-                step);
+            ilqr_.options_.line_search_params.desired_reduction_frac *
+                detail::calculate_cost_reduction(cost_reduction_terms, step));
 }
 
 TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {

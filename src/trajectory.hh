@@ -22,6 +22,12 @@ bool operator==(const TrajectoryPoint<ModelT> &lhs,
 }
 
 template <class ModelT>
+std::ostream &operator<<(std::ostream &out, const TrajectoryPoint<ModelT> &pt) {
+  return out << "time_s: " << pt.time_s << ", state: " << pt.state
+             << ", control: " << pt.control;
+}
+
+template <class ModelT>
 using Trajectory = std::vector<TrajectoryPoint<ModelT>>;
 
 }  // namespace src

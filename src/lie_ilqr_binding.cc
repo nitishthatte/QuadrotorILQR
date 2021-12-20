@@ -25,9 +25,15 @@ ILQR<LieDynamics> init(const LieCostFunction::CostHessianStateState &Q,
   CostFunction<LieDynamics> cost_func{Q, R, from_proto(desired_traj)};
   return ILQR<LieDynamics>{std::move(cost_func), from_proto(options)};
 }
+
+proto::LieTrajectory solve(const src::ILQR<src::LieDynamics> &self,
+                           const proto::LieTrajectory &initial_traj) {
+  return to_proto(self.solve(from_proto(initial_traj)));
+}
 }  // namespace src
 
 PYBIND11_MODULE(lie_ilqr_binding, m) {
   py::class_<src::ILQR<src::LieDynamics>>(m, "LieILQR")
-      .def(py::init(&src::init));
+      .def(py::init(&src::init))
+      .def("solve", &src::solve);
 }
