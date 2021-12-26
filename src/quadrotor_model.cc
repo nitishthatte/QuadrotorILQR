@@ -68,7 +68,17 @@ QuadrotorModel::StateTimeDerivative QuadrotorModel::continuous_dynamics(
        u.sum() * Eigen::Vector3d::UnitZ()) /
       mass_kg_;
 
-  xdot.body_acceleration.ang() = Eigen::Vector3d::Zero();
+  const Eigen::Vector3d M_Nm =
+      Eigen::Matrix<double, 3, 4>{
+          {0, -arm_length_m_, 0, arm_length_m_},
+          {arm_length_m_, 0.0, -arm_length_m_, 0.0},
+          {-torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_,
+           -torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_}} *
+      u;
+
+  xdot.body_acceleration.ang() =
+      inertia_.inverse() * (M_Nm - (xdot.body_velocity.asSO3().hat() *
+                                    inertia_ * xdot.body_velocity.ang()));
 
   return xdot;
 }

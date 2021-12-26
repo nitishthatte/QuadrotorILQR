@@ -24,26 +24,58 @@ TEST(DiscreteDynamics, UpdatesTranslationalStatesCorrectly) {
   x_orig.body_velocity.lin() = Eigen::Vector3d{1.0, 2.0, 3.0};
   const Control u = Control::Ones();
   const QuadrotorModel quad{.mass_kg_ = mass_kg,
-                            .inertia_ = Eigen::Matrix3d::Identity()};
+                            .inertia_ = Eigen::Matrix3d::Identity(),
+                            .arm_length_m_ = 1.0,
+                            .torque_to_thrust_ratio_m_ = 1.0};
 
   const auto x_new = quad.discrete_dynamics(x_orig, u, dt_s);
 
-  const Eigen::Vector3d accel_mps =
+  const Eigen::Vector3d accel_mpss =
       (u.sum() / mass_kg - 9.81) * Eigen::Vector3d::UnitZ();
   manif::SE3Tangentd delta_inertial_from_body{};
   delta_inertial_from_body.lin() =
-      x_orig.body_velocity.lin() * dt_s + 0.5 * accel_mps * dt_s * dt_s;
+      x_orig.body_velocity.lin() * dt_s + 0.5 * accel_mpss * dt_s * dt_s;
 
   auto x_expected = x_orig;
   x_expected.inertial_from_body =
       x_expected.inertial_from_body + delta_inertial_from_body;
   x_expected.body_velocity.lin() =
-      x_orig.body_velocity.lin() + accel_mps * dt_s;
+      x_orig.body_velocity.lin() + accel_mpss * dt_s;
 
   EXPECT_EQ(x_expected.inertial_from_body, x_new.inertial_from_body);
   EXPECT_EQ(x_expected.body_velocity, x_new.body_velocity);
 }
 
+TEST(DiscreteDynamics, UpdatesRotationalStatesCorrectly) {
+  auto x_orig = make_state();
+  x_orig.body_velocity.ang() = Eigen::Vector3d{1.2, 0.0, 0.0};
+  const Control u = Eigen::Vector4d{0.0, -1.0, 0.0, 1.0};
+  const QuadrotorModel quad{.mass_kg_ = mass_kg,
+                            .inertia_ = Eigen::Matrix3d::Identity(),
+                            .arm_length_m_ = 1.0,
+                            .torque_to_thrust_ratio_m_ = 1.0};
+
+  const auto x_new = quad.discrete_dynamics(x_orig, u, dt_s);
+
+  const Eigen::Vector3d rot_accel_radpss = 2.0 * Eigen::Vector3d::UnitX();
+  manif::SE3Tangentd delta_inertial_from_body{};
+  delta_inertial_from_body.ang() =
+      x_orig.body_velocity.ang() * dt_s + 0.5 * rot_accel_radpss * dt_s * dt_s;
+
+  auto x_expected = x_orig;
+  x_expected.inertial_from_body =
+      x_expected.inertial_from_body + delta_inertial_from_body;
+  x_expected.body_velocity.ang() =
+      x_orig.body_velocity.ang() + rot_accel_radpss * dt_s;
+
+  EXPECT_EQ(x_expected.inertial_from_body.rotation(),
+            x_new.inertial_from_body.rotation());
+  EXPECT_EQ(x_expected.body_velocity.ang(), x_new.body_velocity.ang());
+  std::cerr << "expected rot: " << x_expected.inertial_from_body.rotation()
+            << ", actual rot: " << x_new.inertial_from_body.rotation() << "\n";
+  std::cerr << "expected vel: " << x_expected.body_velocity.ang()
+            << ", actual vel: " << x_new.body_velocity.ang() << "\n";
+}
 /*
 TEST(Dynamics, CalculatesExpectedStateJacobian) {
   const auto x = State::Identity();

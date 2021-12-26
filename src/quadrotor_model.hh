@@ -25,6 +25,8 @@ struct QuadrotorModel {
 
   double mass_kg_;
   Eigen::Matrix3d inertia_;
+  const double arm_length_m_;
+  const double torque_to_thrust_ratio_m_;
 
   State discrete_dynamics(const State &x, const Control &u, const double dt_s,
                           DynamicsDifferentials *diffs = nullptr) const;
