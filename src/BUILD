@@ -23,6 +23,25 @@ cc_test(
 )
 
 cc_library(
+    name = "quadrotor_model",
+    srcs = ["quadrotor_model.cc"],
+    hdrs = ["quadrotor_model.hh"],
+    deps = [
+        "@com_github_artivis_manif//:manif",
+    ],
+)
+
+cc_test(
+    name = "quadrotor_model_test",
+    size = "small",
+    srcs = ["quadrotor_model_test.cc"],
+    deps = [
+        ":quadrotor_model",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "cost",
     hdrs = ["cost.hh"],
     deps = [
