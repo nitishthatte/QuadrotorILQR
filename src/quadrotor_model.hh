@@ -7,7 +7,7 @@ struct QuadrotorModel {
     manif::SE3d inertial_from_body;
     manif::SE3d::Tangent body_velocity;
   };
-  struct StateTimeDerivtive {
+  struct StateTimeDerivative {
     manif::SE3d::Tangent body_velocity;
     manif::SE3d::Tangent body_acceleration;
   };
@@ -26,8 +26,12 @@ struct QuadrotorModel {
   double mass_kg_;
   Eigen::Matrix3d inertia_;
 
-  State dynamics(const State &x, const Control &u, const double dt_s,
-                 DynamicsDifferentials *diffs = nullptr) const;
+  State discrete_dynamics(const State &x, const Control &u, const double dt_s,
+                          DynamicsDifferentials *diffs = nullptr) const;
+
+  StateTimeDerivative continuous_dynamics(
+      const State &x, const Control &u,
+      DynamicsDifferentials *diffs = nullptr) const;
 };
 
 }  // namespace src

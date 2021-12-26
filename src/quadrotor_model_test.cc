@@ -1,6 +1,7 @@
 #include "src/quadrotor_model.hh"
 
 #include <gtest/gtest.h>
+#include <manif/impl/se3/SE3Tangent.h>
 
 namespace src {
 using State = QuadrotorModel::State;
@@ -18,22 +19,29 @@ State make_state() {
 }
 }  // namespace
 
-TEST(Dynamics, UpdatesStateCorrectly) {
-  const auto x_orig = make_state();
+TEST(DiscreteDynamics, UpdatesTranslationalStatesCorrectly) {
+  auto x_orig = make_state();
+  x_orig.body_velocity.lin() = Eigen::Vector3d{1.0, 2.0, 3.0};
   const Control u = Control::Ones();
   const QuadrotorModel quad{.mass_kg_ = mass_kg,
                             .inertia_ = Eigen::Matrix3d::Identity()};
 
-  const auto x_new = quad.dynamics(x_orig, u, dt_s);
+  const auto x_new = quad.discrete_dynamics(x_orig, u, dt_s);
+
+  const Eigen::Vector3d accel_mps =
+      (u.sum() / mass_kg - 9.81) * Eigen::Vector3d::UnitZ();
+  manif::SE3Tangentd delta_inertial_from_body{};
+  delta_inertial_from_body.lin() =
+      x_orig.body_velocity.lin() * dt_s + 0.5 * accel_mps * dt_s * dt_s;
+
   auto x_expected = x_orig;
+  x_expected.inertial_from_body =
+      x_expected.inertial_from_body + delta_inertial_from_body;
   x_expected.body_velocity.lin() =
-      x_expected.body_velocity.lin() +
-      (4 / mass_kg - 9.81) * Eigen::Vector3d::UnitZ() * dt_s;
+      x_orig.body_velocity.lin() + accel_mps * dt_s;
 
   EXPECT_EQ(x_expected.inertial_from_body, x_new.inertial_from_body);
   EXPECT_EQ(x_expected.body_velocity, x_new.body_velocity);
-  std::cerr << "expected: " << x_expected.body_velocity
-            << ", actual: " << x_new.body_velocity << std::endl;
 }
 
 /*
