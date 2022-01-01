@@ -93,12 +93,12 @@ TEST_F(QuadrotorModelTest,
         diffs.J_x(QuadrotorModel::StateBlocks::body_lin_vel,
                   QuadrotorModel::StateBlocks::inertial_from_body_rot[i]);
 
-    std::cerr << "finite: " << finite_diff_vel_rot_i << "\n";
-    std::cerr << "analytic: " << analytic_diff_vel_rot_i << "\n";
-    const auto error_frac =
+    const auto error_rel =
         (analytic_diff_vel_rot_i - finite_diff_vel_rot_i).norm() /
         (analytic_diff_vel_rot_i.norm());
-    EXPECT_LT(error_frac, 0.01);
+    const auto error_abs =
+        (analytic_diff_vel_rot_i - finite_diff_vel_rot_i).norm();
+    EXPECT_TRUE(error_rel < 0.01 || error_abs < 1e-12);
   }
 }
 
