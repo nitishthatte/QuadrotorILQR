@@ -9,8 +9,22 @@ QuadrotorModel::State euler_step(const QuadrotorModel::State &x,
                                  const double dt_s) {
   return x + dt_s * x_dot;
 }
-
 }  // namespace
+
+QuadrotorModel::QuadrotorModel(const double mass_kg,
+                               const Eigen::Matrix3d &inertia,
+                               const double arm_length_m,
+                               const double torque_to_thrust_ratio_m)
+    : mass_kg_{mass_kg},
+      inertia_{inertia},
+      arm_length_m_{arm_length_m},
+      torque_to_thrust_ratio_m_{torque_to_thrust_ratio_m} {
+  inertia_llt_ = inertia_.llt();
+  if (inertia_llt_.info() == Eigen::NumericalIssue ||
+      !inertia_.isApprox(inertia_.transpose())) {
+    throw std::runtime_error("Inertia matrix is not positive definite!");
+  }
+}
 
 // uses rk4 to integrate the continuous dynamics
 QuadrotorModel::State QuadrotorModel::discrete_dynamics(
@@ -60,18 +74,38 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
   if (diffs) {
     diffs->J_x = StateJacobian::Zero();
 
-    // fill in dv_dot/dR
+    // fill in dv/dv
+    diffs->J_x(StateBlocks::inertial_from_body_pos, StateBlocks::body_lin_vel) =
+        Eigen::Matrix3d::Identity();
+    diffs->J_x(StateBlocks::inertial_from_body_rot, StateBlocks::body_ang_vel) =
+        Eigen::Matrix3d::Identity();
+
+    // fill in dv_lin_dot/dR
     const Eigen::Vector3d RTez =
         x.inertial_from_body.rotation().transpose() * Eigen::Vector3d::UnitZ();
-    const Eigen::Matrix3d RTez_hat = Eigen::Matrix3d{
+    const Eigen::Matrix3d RTez_hat{
         {0, -RTez.z(), RTez.y()},
         {RTez.z(), 0, -RTez.x()},
         {-RTez.y(), RTez.x(), 0},
     };
     diffs->J_x(StateBlocks::body_lin_vel, StateBlocks::inertial_from_body_rot) =
         -g * RTez_hat;
-  }
 
+    // fill in dv_ang_dot/dv_ang
+    const Eigen::Vector<double, 3> &omega = x.body_velocity.ang();
+    const Eigen::Matrix3d omega_hat{{0, -omega.z(), omega.y()},
+                                    {omega.z(), 0, -omega.x()},
+                                    {-omega.y(), omega.x(), 0}};
+
+    const Eigen::Vector<double, 3> Jomega = inertia_ * omega;
+    const Eigen::Matrix3d Jomega_hat{{0, -Jomega.z(), Jomega.y()},
+                                     {Jomega.z(), 0, -Jomega.x()},
+                                     {-Jomega.y(), Jomega.x(), 0}};
+    const Eigen::Matrix3d Jomega_diff = omega_hat * inertia_ - Jomega_hat;
+
+    diffs->J_x(StateBlocks::body_ang_vel, StateBlocks::body_ang_vel) =
+        -inertia_llt_.solve(Jomega_diff);
+  }
   return xdot;
 }
 

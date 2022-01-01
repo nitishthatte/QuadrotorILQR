@@ -4,9 +4,12 @@
 #include <manif/impl/se3/SE3Tangent.h>
 
 #include <iomanip>
+#include <random>
 
 namespace src {
 using State = QuadrotorModel::State;
+using StateTangent = QuadrotorModel::StateTangent;
+using StateBlocks = QuadrotorModel::StateBlocks;
 constexpr auto STATE_DIM = QuadrotorModel::STATE_DIM;
 using Control = QuadrotorModel::Control;
 constexpr auto CONTROL_DIM = QuadrotorModel::CONTROL_DIM;
@@ -14,12 +17,25 @@ using DynamicsDifferentials = QuadrotorModel::DynamicsDifferentials;
 constexpr auto dt_s = 0.1;
 constexpr auto mass_kg = 1.0;
 
+namespace {
+Eigen::Matrix3d make_random_inertia_matrix() {
+  srand(0u);
+  const Eigen::Matrix3d A = Eigen::Matrix3d::Random();
+  const Eigen::Matrix3d inertia =
+      A * A.transpose() + 3 * Eigen::Matrix3d::Identity();
+  return inertia;
+}
+}  // namespace
+
 class QuadrotorModelTest : public ::testing::Test {
  protected:
-  const QuadrotorModel quad_{.mass_kg_ = mass_kg,
-                             .inertia_ = Eigen::Matrix3d::Identity(),
-                             .arm_length_m_ = 1.0,
-                             .torque_to_thrust_ratio_m_ = 1.0};
+  QuadrotorModel quad_{
+      mass_kg,
+      Eigen::Matrix3d::Identity(),  // inertia
+      1.0,                          // arm_length_m
+      1.0                           // torque_to_thrust_ratio_m
+  };
+
   State x_init_{.inertial_from_body = manif::SE3d::Identity(),
                 .body_velocity = manif::SE3Tangentd::Zero()};
 };
@@ -69,35 +85,45 @@ TEST_F(QuadrotorModelTest, DiscreteDynamicsUpdatesRotationalStatesCorrectly) {
   EXPECT_EQ(x_expected.body_velocity.ang(), x_new.body_velocity.ang());
 }
 
-TEST_F(QuadrotorModelTest,
-       ContinuousDynamicsStateJacobianCloseToFiniteDifference) {
+TEST(QuadrotorContinuousDynamics, StateJacobianCloseToFiniteDifference) {
+  const QuadrotorModel quad{
+      mass_kg,
+      make_random_inertia_matrix(),  // inertia
+      1.0,                           // arm_length_m
+      1.0                            // torque_to_thrust_ratio_m
+  };
+  const State x_init{
+      .inertial_from_body =
+          manif::SE3Tangentd{
+              Eigen::Vector<double, 6>{1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+              .exp(),
+      .body_velocity = Eigen::Vector<double, 6>{2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
   const auto u = Control::Zero();
 
   DynamicsDifferentials diffs;
-  quad_.continuous_dynamics(x_init_, u, &diffs);
+  quad.continuous_dynamics(x_init, u, &diffs);
 
   const auto EPS = 1e-6;
-  for (size_t i = 0; i < 3; ++i) {
-    QuadrotorModel::StateTangent delta_x{
-        .body_velocity = manif::SE3Tangentd::Zero(),
-        .body_acceleration = manif::SE3Tangentd::Zero()};
-    delta_x.body_velocity.ang()[i] = EPS;
+  for (size_t i = 0; i < STATE_DIM; ++i) {
+    StateTangent delta_x{.body_velocity = manif::SE3Tangentd::Zero(),
+                         .body_acceleration = manif::SE3Tangentd::Zero()};
+    if (i < STATE_DIM / 2) {
+      delta_x.body_velocity[i] = EPS;
+    } else {
+      delta_x.body_acceleration[i - STATE_DIM / 2] = EPS;
+    }
 
-    const auto x_plus = quad_.continuous_dynamics(x_init_ + delta_x, u);
-    const auto x_minus = quad_.continuous_dynamics(x_init_ - delta_x, u);
-    const Eigen::Vector<double, 3> finite_diff_vel_rot_i =
-        ((x_plus - x_minus).coeffs() /
-         (2 * EPS))(QuadrotorModel::StateBlocks::body_lin_vel);
+    const auto x_plus = quad.continuous_dynamics(x_init + delta_x, u);
+    const auto x_minus = quad.continuous_dynamics(x_init - delta_x, u);
+    const Eigen::Vector<double, STATE_DIM> finite_diff_col =
+        ((x_plus - x_minus).coeffs() / (2 * EPS));
 
-    const Eigen::Vector<double, 3> &analytic_diff_vel_rot_i =
-        diffs.J_x(QuadrotorModel::StateBlocks::body_lin_vel,
-                  QuadrotorModel::StateBlocks::inertial_from_body_rot[i]);
+    const Eigen::Vector<double, STATE_DIM> &analytic_diff_col =
+        diffs.J_x.col(i);
 
-    const auto error_rel =
-        (analytic_diff_vel_rot_i - finite_diff_vel_rot_i).norm() /
-        (analytic_diff_vel_rot_i.norm());
-    const auto error_abs =
-        (analytic_diff_vel_rot_i - finite_diff_vel_rot_i).norm();
+    const auto error_rel = (analytic_diff_col - finite_diff_col).norm() /
+                           (analytic_diff_col.norm());
+    const auto error_abs = (analytic_diff_col - finite_diff_col).norm();
     EXPECT_TRUE(error_rel < 0.01 || error_abs < 1e-12);
   }
 }
