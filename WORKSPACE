@@ -148,3 +148,11 @@ http_archive(
         "https://github.com/protocolbuffers/protobuf/releases/download/v3.19.1/protobuf-all-3.19.1.tar.gz",
     ],
 )
+
+## Wise Enum ##
+new_git_repository(
+    name = "wise_enum",
+    build_file = "@//:third_party/wise_enum.BUILD",
+    commit = "34ac79f7ea2658a148359ce82508cc9301e31dd3",
+    remote = "https://github.com/quicknir/wise_enum",
+)

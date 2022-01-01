@@ -2,17 +2,27 @@
 #include <manif/manif.h>
 
 namespace src {
+
 struct QuadrotorModel {
   struct State {
     manif::SE3d inertial_from_body;
-    manif::SE3d::Tangent body_velocity;
+    manif::SE3Tangentd body_velocity;
   };
-  struct StateTimeDerivative {
-    manif::SE3d::Tangent body_velocity;
-    manif::SE3d::Tangent body_acceleration;
+  static constexpr int STATE_DIM = decltype(State::inertial_from_body)::DoF +
+                                   decltype(State::body_velocity)::DoF;
+  struct StateTangent {
+    manif::SE3Tangentd body_velocity;
+    manif::SE3Tangentd body_acceleration;
+
+    Eigen::Vector<double, STATE_DIM> coeffs();
   };
-  static constexpr int STATE_DIM = 2 * decltype(State::inertial_from_body)::DoF;
   using StateJacobian = Eigen::Matrix<double, STATE_DIM, STATE_DIM>;
+  struct StateBlocks {
+    const static inline auto inertial_from_body_pos = Eigen::seqN(0, 3);
+    const static inline auto inertial_from_body_rot = Eigen::seqN(3, 3);
+    const static inline auto body_lin_vel = Eigen::seqN(6, 3);
+    const static inline auto body_ang_vel = Eigen::seqN(9, 3);
+  };
 
   using Control = Eigen::Vector4d;
   static constexpr int CONTROL_DIM = 4;
@@ -31,9 +41,27 @@ struct QuadrotorModel {
   State discrete_dynamics(const State &x, const Control &u, const double dt_s,
                           DynamicsDifferentials *diffs = nullptr) const;
 
-  StateTimeDerivative continuous_dynamics(
+  StateTangent continuous_dynamics(
       const State &x, const Control &u,
       DynamicsDifferentials *diffs = nullptr) const;
 };
+
+QuadrotorModel::StateTangent operator*(
+    const double scalar, const QuadrotorModel::StateTangent &tangent);
+
+QuadrotorModel::StateTangent operator/(
+    const QuadrotorModel::StateTangent &tangent, const double scalar);
+
+QuadrotorModel::StateTangent operator+(const QuadrotorModel::StateTangent &lhs,
+                                       const QuadrotorModel::StateTangent &rhs);
+
+QuadrotorModel::StateTangent operator-(const QuadrotorModel::StateTangent &lhs,
+                                       const QuadrotorModel::StateTangent &rhs);
+
+QuadrotorModel::State operator+(const QuadrotorModel::State &x,
+                                const QuadrotorModel::StateTangent &tangent);
+
+QuadrotorModel::State operator-(const QuadrotorModel::State &x,
+                                const QuadrotorModel::StateTangent &tangent);
 
 }  // namespace src

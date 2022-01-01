@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 #include <manif/impl/se3/SE3Tangent.h>
 
+#include <iomanip>
+
 namespace src {
 using State = QuadrotorModel::State;
 constexpr auto STATE_DIM = QuadrotorModel::STATE_DIM;
@@ -12,104 +14,95 @@ using DynamicsDifferentials = QuadrotorModel::DynamicsDifferentials;
 constexpr auto dt_s = 0.1;
 constexpr auto mass_kg = 1.0;
 
-namespace {
-State make_state() {
-  return {.inertial_from_body = manif::SE3d::Identity(),
-          .body_velocity = manif::SE3Tangentd::Zero()};
-}
-}  // namespace
+class QuadrotorModelTest : public ::testing::Test {
+ protected:
+  const QuadrotorModel quad_{.mass_kg_ = mass_kg,
+                             .inertia_ = Eigen::Matrix3d::Identity(),
+                             .arm_length_m_ = 1.0,
+                             .torque_to_thrust_ratio_m_ = 1.0};
+  State x_init_{.inertial_from_body = manif::SE3d::Identity(),
+                .body_velocity = manif::SE3Tangentd::Zero()};
+};
 
-TEST(DiscreteDynamics, UpdatesTranslationalStatesCorrectly) {
-  auto x_orig = make_state();
-  x_orig.body_velocity.lin() = Eigen::Vector3d{1.0, 2.0, 3.0};
+TEST_F(QuadrotorModelTest,
+       DiscreteDynamicsUpdatesTranslationalStatesCorrectly) {
+  x_init_.body_velocity.lin() = Eigen::Vector3d{1.0, 2.0, 3.0};
   const Control u = Control::Ones();
-  const QuadrotorModel quad{.mass_kg_ = mass_kg,
-                            .inertia_ = Eigen::Matrix3d::Identity(),
-                            .arm_length_m_ = 1.0,
-                            .torque_to_thrust_ratio_m_ = 1.0};
 
-  const auto x_new = quad.discrete_dynamics(x_orig, u, dt_s);
+  const auto x_new = quad_.discrete_dynamics(x_init_, u, dt_s);
 
   const Eigen::Vector3d accel_mpss =
       (u.sum() / mass_kg - 9.81) * Eigen::Vector3d::UnitZ();
   manif::SE3Tangentd delta_inertial_from_body{};
   delta_inertial_from_body.lin() =
-      x_orig.body_velocity.lin() * dt_s + 0.5 * accel_mpss * dt_s * dt_s;
+      x_init_.body_velocity.lin() * dt_s + 0.5 * accel_mpss * dt_s * dt_s;
 
-  auto x_expected = x_orig;
+  auto x_expected = x_init_;
   x_expected.inertial_from_body =
       x_expected.inertial_from_body + delta_inertial_from_body;
   x_expected.body_velocity.lin() =
-      x_orig.body_velocity.lin() + accel_mpss * dt_s;
+      x_init_.body_velocity.lin() + accel_mpss * dt_s;
 
   EXPECT_EQ(x_expected.inertial_from_body, x_new.inertial_from_body);
   EXPECT_EQ(x_expected.body_velocity, x_new.body_velocity);
 }
 
-TEST(DiscreteDynamics, UpdatesRotationalStatesCorrectly) {
-  auto x_orig = make_state();
-  x_orig.body_velocity.ang() = Eigen::Vector3d{1.2, 0.0, 0.0};
+TEST_F(QuadrotorModelTest, DiscreteDynamicsUpdatesRotationalStatesCorrectly) {
+  x_init_.body_velocity.ang() = Eigen::Vector3d{1.2, 0.0, 0.0};
   const Control u = Eigen::Vector4d{0.0, -1.0, 0.0, 1.0};
-  const QuadrotorModel quad{.mass_kg_ = mass_kg,
-                            .inertia_ = Eigen::Matrix3d::Identity(),
-                            .arm_length_m_ = 1.0,
-                            .torque_to_thrust_ratio_m_ = 1.0};
 
-  const auto x_new = quad.discrete_dynamics(x_orig, u, dt_s);
+  const auto x_new = quad_.discrete_dynamics(x_init_, u, dt_s);
 
   const Eigen::Vector3d rot_accel_radpss = 2.0 * Eigen::Vector3d::UnitX();
   manif::SE3Tangentd delta_inertial_from_body{};
   delta_inertial_from_body.ang() =
-      x_orig.body_velocity.ang() * dt_s + 0.5 * rot_accel_radpss * dt_s * dt_s;
+      x_init_.body_velocity.ang() * dt_s + 0.5 * rot_accel_radpss * dt_s * dt_s;
 
-  auto x_expected = x_orig;
+  auto x_expected = x_init_;
   x_expected.inertial_from_body =
       x_expected.inertial_from_body + delta_inertial_from_body;
   x_expected.body_velocity.ang() =
-      x_orig.body_velocity.ang() + rot_accel_radpss * dt_s;
+      x_init_.body_velocity.ang() + rot_accel_radpss * dt_s;
 
   EXPECT_EQ(x_expected.inertial_from_body.rotation(),
             x_new.inertial_from_body.rotation());
   EXPECT_EQ(x_expected.body_velocity.ang(), x_new.body_velocity.ang());
-  std::cerr << "expected rot: " << x_expected.inertial_from_body.rotation()
-            << ", actual rot: " << x_new.inertial_from_body.rotation() << "\n";
-  std::cerr << "expected vel: " << x_expected.body_velocity.ang()
-            << ", actual vel: " << x_new.body_velocity.ang() << "\n";
-}
-/*
-TEST(Dynamics, CalculatesExpectedStateJacobian) {
-  const auto x = State::Identity();
-  const auto u = Control{{1.0, 0.0, 0.0}, manif::SO3d{M_PI, 0.0, 0.0}};
-
-  DynamicsDifferentials diffs;
-  QuadrotorModel::dynamics(x, u, , dt_s, &diffs);
-
-  const State::Jacobian J_x_expected = u.adj().inverse();
-  EXPECT_EQ(diffs.J_x, J_x_expected);
 }
 
-TEST(Dynamics, StateJacobianCloseToFiniteDifference) {
-  const auto x = State::Identity();
-  const auto u = Control{{1.0, 0.0, 0.0}, manif::SO3d{M_PI, 0.0, 0.0}};
+TEST_F(QuadrotorModelTest,
+       ContinuousDynamicsStateJacobianCloseToFiniteDifference) {
+  const auto u = Control::Zero();
 
   DynamicsDifferentials diffs;
-  QuadrotorModel::dynamics(x, u, , dt_s, &diffs);
+  quad_.continuous_dynamics(x_init_, u, &diffs);
 
   const auto EPS = 1e-6;
-  for (size_t i = 0; i < STATE_DIM; ++i) {
-    State::Tangent delta_x = State::Tangent::Zero();
-    delta_x[i] = EPS;
-    const State::Tangent finit_diff_col =
-        (QuadrotorModel::dynamics(x + delta_x, u, dt_s) -
-         QuadrotorModel::dynamics(x + -1 * delta_x, u, dt_s)) /
-        (2 * EPS);
+  for (size_t i = 0; i < 3; ++i) {
+    QuadrotorModel::StateTangent delta_x{
+        .body_velocity = manif::SE3Tangentd::Zero(),
+        .body_acceleration = manif::SE3Tangentd::Zero()};
+    delta_x.body_velocity.ang()[i] = EPS;
 
+    const auto x_plus = quad_.continuous_dynamics(x_init_ + delta_x, u);
+    const auto x_minus = quad_.continuous_dynamics(x_init_ - delta_x, u);
+    const Eigen::Vector<double, 3> finite_diff_vel_rot_i =
+        ((x_plus - x_minus).coeffs() /
+         (2 * EPS))(QuadrotorModel::StateBlocks::body_lin_vel);
+
+    const Eigen::Vector<double, 3> &analytic_diff_vel_rot_i =
+        diffs.J_x(QuadrotorModel::StateBlocks::body_lin_vel,
+                  QuadrotorModel::StateBlocks::inertial_from_body_rot[i]);
+
+    std::cerr << "finite: " << finite_diff_vel_rot_i << "\n";
+    std::cerr << "analytic: " << analytic_diff_vel_rot_i << "\n";
     const auto error_frac =
-        (diffs.J_x.col(i) - finit_diff_col).norm() / (diffs.J_x.col(i).norm());
+        (analytic_diff_vel_rot_i - finite_diff_vel_rot_i).norm() /
+        (analytic_diff_vel_rot_i.norm());
     EXPECT_LT(error_frac, 0.01);
   }
 }
 
+/*
 TEST(Dynamics, CalculatesExpectedControlJacobian) {
   const auto x = State::Identity();
   const auto u = Control{{1.0, 0.0, 0.0}, manif::SO3d{M_PI, 0.0, 0.0}};
