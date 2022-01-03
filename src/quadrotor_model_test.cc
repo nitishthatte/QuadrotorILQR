@@ -11,6 +11,7 @@ using State = QuadrotorModel::State;
 using StateTangent = QuadrotorModel::StateTangent;
 using StateBlocks = QuadrotorModel::StateBlocks;
 constexpr auto STATE_DIM = QuadrotorModel::STATE_DIM;
+constexpr auto CONFIG_DIM = QuadrotorModel::CONFIG_DIM;
 using Control = QuadrotorModel::Control;
 constexpr auto CONTROL_DIM = QuadrotorModel::CONTROL_DIM;
 using DynamicsDifferentials = QuadrotorModel::DynamicsDifferentials;
@@ -24,6 +25,35 @@ Eigen::Matrix3d make_random_inertia_matrix() {
   const Eigen::Matrix3d inertia =
       A * A.transpose() + 3 * Eigen::Matrix3d::Identity();
   return inertia;
+}
+
+template <class T>
+void check_state_jacobian(const T &fun,
+                          const QuadrotorModel::StateJacobian &analytic_diff) {
+  const auto EPS = 1e-6;
+  for (size_t i = 0; i < STATE_DIM; ++i) {
+    StateTangent delta_x{.body_velocity = manif::SE3Tangentd::Zero(),
+                         .body_acceleration = manif::SE3Tangentd::Zero()};
+    if (i < CONFIG_DIM) {
+      delta_x.body_velocity[i] = EPS;
+    } else {
+      delta_x.body_acceleration[i - CONFIG_DIM] = EPS;
+    }
+
+    const auto EPS = 1e-6;
+    const auto x_plus = fun(delta_x);
+    const auto x_minus = fun(-1 * delta_x);
+    const Eigen::Vector<double, STATE_DIM> finite_diff_col =
+        ((x_plus - x_minus).coeffs() / (2 * EPS));
+
+    const Eigen::Vector<double, STATE_DIM> &analytic_diff_col =
+        analytic_diff.col(i);
+
+    const auto error_rel = (analytic_diff_col - finite_diff_col).norm() /
+                           (analytic_diff_col.norm());
+    const auto error_abs = (analytic_diff_col - finite_diff_col).norm();
+    EXPECT_TRUE(error_rel < 0.01 || error_abs < 1e-12);
+  }
 }
 }  // namespace
 
@@ -103,29 +133,60 @@ TEST(QuadrotorContinuousDynamics, StateJacobianCloseToFiniteDifference) {
   DynamicsDifferentials diffs;
   quad.continuous_dynamics(x_init, u, &diffs);
 
-  const auto EPS = 1e-6;
-  for (size_t i = 0; i < STATE_DIM; ++i) {
-    StateTangent delta_x{.body_velocity = manif::SE3Tangentd::Zero(),
-                         .body_acceleration = manif::SE3Tangentd::Zero()};
-    if (i < STATE_DIM / 2) {
-      delta_x.body_velocity[i] = EPS;
-    } else {
-      delta_x.body_acceleration[i - STATE_DIM / 2] = EPS;
-    }
+  const auto fun = [&quad, &x_init,
+                    u](const QuadrotorModel::StateTangent &delta_x) {
+    return quad.continuous_dynamics(x_init + delta_x, u);
+  };
 
-    const auto x_plus = quad.continuous_dynamics(x_init + delta_x, u);
-    const auto x_minus = quad.continuous_dynamics(x_init - delta_x, u);
-    const Eigen::Vector<double, STATE_DIM> finite_diff_col =
-        ((x_plus - x_minus).coeffs() / (2 * EPS));
+  check_state_jacobian(fun, diffs.J_x);
+}
 
-    const Eigen::Vector<double, STATE_DIM> &analytic_diff_col =
-        diffs.J_x.col(i);
+TEST(StatePlusStateTangentAdd, ComputesCorrectJacobianWrtState) {
+  const State x{.inertial_from_body =
+                    manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                           1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                        .exp(),
+                .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                    2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  const StateTangent tangent{
+      .body_velocity = manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+          3.0, 4.0, 5.0, 6.0, 7.0, 8.0}},
+      .body_acceleration = manif::SE3Tangentd{
+          Eigen::Vector<double, CONFIG_DIM>{4.0, 5.0, 6.0, 7.0, 8.0, 9.0}}};
 
-    const auto error_rel = (analytic_diff_col - finite_diff_col).norm() /
-                           (analytic_diff_col.norm());
-    const auto error_abs = (analytic_diff_col - finite_diff_col).norm();
-    EXPECT_TRUE(error_rel < 0.01 || error_abs < 1e-12);
-  }
+  QuadrotorModel::StateJacobian J_x;
+  QuadrotorModel::StateJacobian J_t;
+  add(x, tangent, &J_x, &J_t);
+
+  const auto fun = [&x, &tangent](const QuadrotorModel::StateTangent &delta_x) {
+    return (x + delta_x) + tangent;
+  };
+
+  check_state_jacobian(fun, J_x);
+}
+
+TEST(StatePlusStateTangentAdd, ComputesCorrectJacobianWrtTangent) {
+  const State x{.inertial_from_body =
+                    manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                           1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                        .exp(),
+                .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                    2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  const StateTangent tangent{
+      .body_velocity = manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+          3.0, 4.0, 5.0, 6.0, 7.0, 8.0}},
+      .body_acceleration = manif::SE3Tangentd{
+          Eigen::Vector<double, CONFIG_DIM>{4.0, 5.0, 6.0, 7.0, 8.0, 9.0}}};
+
+  QuadrotorModel::StateJacobian J_x;
+  QuadrotorModel::StateJacobian J_t;
+  add(x, tangent, &J_x, &J_t);
+
+  const auto fun = [&x, &tangent](const QuadrotorModel::StateTangent &delta_x) {
+    return x + (tangent + delta_x);
+  };
+
+  check_state_jacobian(fun, J_t);
 }
 
 /*

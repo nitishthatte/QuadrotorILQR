@@ -11,8 +11,8 @@ struct QuadrotorModel {
     manif::SE3d inertial_from_body;
     manif::SE3Tangentd body_velocity;
   };
-  static constexpr int STATE_DIM = decltype(State::inertial_from_body)::DoF +
-                                   decltype(State::body_velocity)::DoF;
+  static constexpr int CONFIG_DIM = decltype(State::inertial_from_body)::DoF;
+  static constexpr int STATE_DIM = 2 * CONFIG_DIM;
   struct StateTangent {
     manif::SE3Tangentd body_velocity;
     manif::SE3Tangentd body_acceleration;
@@ -21,8 +21,10 @@ struct QuadrotorModel {
   };
   using StateJacobian = Eigen::Matrix<double, STATE_DIM, STATE_DIM>;
   struct StateBlocks {
+    const static inline auto inertial_from_body = Eigen::seqN(0, 6);
     const static inline auto inertial_from_body_pos = Eigen::seqN(0, 3);
     const static inline auto inertial_from_body_rot = Eigen::seqN(3, 3);
+    const static inline auto body_velocity = Eigen::seqN(6, 6);
     const static inline auto body_lin_vel = Eigen::seqN(6, 3);
     const static inline auto body_ang_vel = Eigen::seqN(9, 3);
   };
@@ -65,7 +67,21 @@ QuadrotorModel::StateTangent operator-(const QuadrotorModel::StateTangent &lhs,
 QuadrotorModel::State operator+(const QuadrotorModel::State &x,
                                 const QuadrotorModel::StateTangent &tangent);
 
+QuadrotorModel::State add(const QuadrotorModel::State &x,
+                          const QuadrotorModel::StateTangent &tangent,
+                          QuadrotorModel::StateJacobian *J_x = nullptr,
+                          QuadrotorModel::StateJacobian *J_t = nullptr);
+
 QuadrotorModel::State operator-(const QuadrotorModel::State &x,
                                 const QuadrotorModel::StateTangent &tangent);
+
+QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
+                                       const QuadrotorModel::State &rhs);
+
+QuadrotorModel::State euler_step(
+    const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &x_dot,
+    double dt_s,
+    QuadrotorModel::DynamicsDifferentials *cont_dynamics_diffs = nullptr,
+    QuadrotorModel::DynamicsDifferentials *diffs_out = nullptr);
 
 }  // namespace src

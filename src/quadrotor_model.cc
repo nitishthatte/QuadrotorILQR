@@ -3,12 +3,6 @@
 namespace src {
 namespace {
 constexpr auto g = 9.81;
-
-QuadrotorModel::State euler_step(const QuadrotorModel::State &x,
-                                 const QuadrotorModel::StateTangent &x_dot,
-                                 const double dt_s) {
-  return x + dt_s * x_dot;
-}
 }  // namespace
 
 QuadrotorModel::QuadrotorModel(const double mass_kg,
@@ -75,10 +69,8 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
     diffs->J_x = StateJacobian::Zero();
 
     // fill in dv/dv
-    diffs->J_x(StateBlocks::inertial_from_body_pos, StateBlocks::body_lin_vel) =
-        Eigen::Matrix3d::Identity();
-    diffs->J_x(StateBlocks::inertial_from_body_rot, StateBlocks::body_ang_vel) =
-        Eigen::Matrix3d::Identity();
+    diffs->J_x(StateBlocks::inertial_from_body, StateBlocks::body_velocity) =
+        Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM>::Identity();
 
     // fill in dv_lin_dot/dR
     const Eigen::Vector3d RTez =
@@ -145,6 +137,36 @@ QuadrotorModel::StateTangent operator-(
           .body_acceleration = lhs.body_acceleration - rhs.body_acceleration};
 }
 
+QuadrotorModel::State add(const QuadrotorModel::State &x,
+                          const QuadrotorModel::StateTangent &tangent,
+                          QuadrotorModel::StateJacobian *J_x_ptr,
+                          QuadrotorModel::StateJacobian *J_t_ptr) {
+  constexpr auto CONFIG_DIM = QuadrotorModel::CONFIG_DIM;
+  using StateBlocks = QuadrotorModel::StateBlocks;
+  if (J_x_ptr && J_t_ptr) {
+    Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM> J_plus_x_inertial_from_body;
+    Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM> J_plus_tangent_body_vel;
+    const QuadrotorModel::State x_next{
+        .inertial_from_body = x.inertial_from_body.plus(
+            tangent.body_velocity, J_plus_x_inertial_from_body,
+            J_plus_tangent_body_vel),
+        .body_velocity = x.body_velocity + tangent.body_acceleration};
+
+    auto &J_x = *J_x_ptr;
+    J_x = QuadrotorModel::StateJacobian::Identity();
+    J_x(StateBlocks::inertial_from_body, StateBlocks::inertial_from_body) =
+        J_plus_x_inertial_from_body;
+
+    auto &J_t = *J_t_ptr;
+    J_t = QuadrotorModel::StateJacobian::Identity();
+    J_t(StateBlocks::inertial_from_body, StateBlocks::inertial_from_body) =
+        J_plus_tangent_body_vel;
+
+    return x_next;
+  }
+  return x + tangent;
+}
+
 QuadrotorModel::State operator+(const QuadrotorModel::State &x,
                                 const QuadrotorModel::StateTangent &tangent) {
   return {.inertial_from_body = x.inertial_from_body + tangent.body_velocity,
@@ -156,5 +178,19 @@ QuadrotorModel::State operator-(const QuadrotorModel::State &x,
   return {
       .inertial_from_body = x.inertial_from_body + -1 * tangent.body_velocity,
       .body_velocity = x.body_velocity - tangent.body_acceleration};
+}
+
+QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
+                                       const QuadrotorModel::State &rhs) {
+  return {.body_velocity = lhs.inertial_from_body - rhs.inertial_from_body,
+          .body_acceleration = lhs.body_velocity - rhs.body_velocity};
+}
+
+QuadrotorModel::State euler_step(
+    const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &x_dot,
+    const double dt_s,
+    QuadrotorModel::DynamicsDifferentials *cont_dynamics_diffs,
+    QuadrotorModel::DynamicsDifferentials *diffs_out) {
+  return x + dt_s * x_dot;
 }
 }  // namespace src
