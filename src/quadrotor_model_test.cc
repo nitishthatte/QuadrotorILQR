@@ -182,45 +182,64 @@ TEST(StatePlusStateTangentAdd, ComputesCorrectJacobianWrtTangent) {
   QuadrotorModel::StateJacobian J_t;
   add(x, tangent, &J_x, &J_t);
 
-  const auto fun = [&x, &tangent](const QuadrotorModel::StateTangent &delta_x) {
-    return x + (tangent + delta_x);
-  };
+  const auto fun =
+      [&x, &tangent](const QuadrotorModel::StateTangent &delta_tangent) {
+        return x + (tangent + delta_tangent);
+      };
 
   check_state_jacobian(fun, J_t);
 }
 
-/*
-TEST(Dynamics, CalculatesExpectedControlJacobian) {
-  const auto x = State::Identity();
-  const auto u = Control{{1.0, 0.0, 0.0}, manif::SO3d{M_PI, 0.0, 0.0}};
+TEST(EulerStep, ComputesCorrectJacobianWrtState) {
+  const State x{.inertial_from_body =
+                    manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                           1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                        .exp(),
+                .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                    2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  const StateTangent x_dot{
+      .body_velocity = manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+          3.0, 4.0, 5.0, 6.0, 7.0, 8.0}},
+      .body_acceleration = manif::SE3Tangentd{
+          Eigen::Vector<double, CONFIG_DIM>{4.0, 5.0, 6.0, 7.0, 8.0, 9.0}}};
 
-  DynamicsDifferentials diffs;
-  QuadrotorModel::dynamics(x, u, dt_s, &diffs);
+  QuadrotorModel::StateJacobian J_x;
+  QuadrotorModel::StateJacobian J_x_dot;
+  const auto dt_s = 0.1;
+  detail::euler_step(x, x_dot, dt_s, &J_x, &J_x_dot);
 
-  const Control::Jacobian J_u_expected = Control::Jacobian::Identity();
-  EXPECT_EQ(diffs.J_u, J_u_expected);
+  const auto fun = [&x, &x_dot,
+                    dt_s](const QuadrotorModel::StateTangent &delta_x) {
+    return detail::euler_step(x + delta_x, x_dot, dt_s);
+  };
+
+  check_state_jacobian(fun, J_x);
 }
 
-TEST(Dynamics, ControlJacobianCloseToFiniteDifference) {
-  const auto x = State::Identity();
-  const auto u = Control{{1.0, 0.0, 0.0}, manif::SO3d{M_PI, 0.0, 0.0}};
+TEST(EulerStep, ComputesCorrectJacobianWrtStateDeriv) {
+  const State x{.inertial_from_body =
+                    manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                           1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                        .exp(),
+                .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                    2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  const StateTangent x_dot{
+      .body_velocity = manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+          3.0, 4.0, 5.0, 6.0, 7.0, 8.0}},
+      .body_acceleration = manif::SE3Tangentd{
+          Eigen::Vector<double, CONFIG_DIM>{4.0, 5.0, 6.0, 7.0, 8.0, 9.0}}};
 
-  DynamicsDifferentials diffs;
-  QuadrotorModel::dynamics(x, u, dt_s, &diffs);
+  QuadrotorModel::StateJacobian J_x;
+  QuadrotorModel::StateJacobian J_x_dot;
+  const auto dt_s = 0.1;
+  detail::euler_step(x, x_dot, dt_s, &J_x, &J_x_dot);
 
-  const auto EPS = 1e-6;
-  for (size_t i = 0; i < CONTROL_DIM; ++i) {
-    Control::Tangent delta_u = Control::Tangent::Zero();
-    delta_u[i] = EPS;
-    const Control::Tangent finit_diff_col =
-        (QuadrotorModel::dynamics(x, u + delta_u, dt_s) -
-         QuadrotorModel::dynamics(x, u + -1 * delta_u, dt_s)) /
-        (2 * EPS);
+  const auto fun = [&x, &x_dot,
+                    dt_s](const QuadrotorModel::StateTangent &delta_x_dot) {
+    return detail::euler_step(x, x_dot + delta_x_dot, dt_s);
+  };
 
-    const auto error_frac =
-        (diffs.J_u.col(i) - finit_diff_col).norm() / (diffs.J_u.col(i).norm());
-    EXPECT_LT(error_frac, 0.01);
-  }
+  check_state_jacobian(fun, J_x_dot);
 }
-*/
+
 }  // namespace src

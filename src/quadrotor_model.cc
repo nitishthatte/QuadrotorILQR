@@ -28,12 +28,12 @@ QuadrotorModel::State QuadrotorModel::discrete_dynamics(
   // ControlJacobian J_u;
   // const auto x_next = x.origin_from_com.compose(u, J_x, J_u);
   const auto k1 = continuous_dynamics(x, u);
-  const auto k2 = continuous_dynamics(euler_step(x, k1, dt_s / 2), u);
-  const auto k3 = continuous_dynamics(euler_step(x, k2, dt_s / 2), u);
-  const auto k4 = continuous_dynamics(euler_step(x, k3, dt_s), u);
+  const auto k2 = continuous_dynamics(detail::euler_step(x, k1, dt_s / 2), u);
+  const auto k3 = continuous_dynamics(detail::euler_step(x, k2, dt_s / 2), u);
+  const auto k4 = continuous_dynamics(detail::euler_step(x, k3, dt_s), u);
 
-  const auto xdot = (k1 + 2 * k2 + 2 * k3 + k4) / 6.0;
-  return euler_step(x, xdot, dt_s);
+  const auto x_dot = (k1 + 2 * k2 + 2 * k3 + k4) / 6.0;
+  return detail::euler_step(x, x_dot, dt_s);
 
   /*
   if (diffs) {
@@ -186,11 +186,18 @@ QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
           .body_acceleration = lhs.body_velocity - rhs.body_velocity};
 }
 
-QuadrotorModel::State euler_step(
-    const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &x_dot,
-    const double dt_s,
-    QuadrotorModel::DynamicsDifferentials *cont_dynamics_diffs,
-    QuadrotorModel::DynamicsDifferentials *diffs_out) {
+namespace detail {
+QuadrotorModel::State euler_step(const QuadrotorModel::State &x,
+                                 const QuadrotorModel::StateTangent &x_dot,
+                                 const double dt_s,
+                                 QuadrotorModel::StateJacobian *J_x_ptr,
+                                 QuadrotorModel::StateJacobian *J_x_dot_ptr) {
+  if (J_x_ptr && J_x_dot_ptr) {
+    const auto x_next = add(x, dt_s * x_dot, J_x_ptr, J_x_dot_ptr);
+    *J_x_dot_ptr *= dt_s;
+    return x_next;
+  }
   return x + dt_s * x_dot;
 }
+}  // namespace detail
 }  // namespace src

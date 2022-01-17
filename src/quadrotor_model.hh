@@ -78,10 +78,10 @@ QuadrotorModel::State operator-(const QuadrotorModel::State &x,
 QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
                                        const QuadrotorModel::State &rhs);
 
+namespace detail {
 QuadrotorModel::State euler_step(
     const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &x_dot,
-    double dt_s,
-    QuadrotorModel::DynamicsDifferentials *cont_dynamics_diffs = nullptr,
-    QuadrotorModel::DynamicsDifferentials *diffs_out = nullptr);
-
+    const double dt_s, QuadrotorModel::StateJacobian *J_x_ptr = nullptr,
+    QuadrotorModel::StateJacobian *J_x_dot_ptr = nullptr);
+}
 }  // namespace src
