@@ -1,5 +1,6 @@
 #include "src/quadrotor_model.hh"
 
+#include <array>
 namespace src {
 namespace {
 constexpr auto g = 9.81;
@@ -20,27 +21,27 @@ QuadrotorModel::QuadrotorModel(const double mass_kg,
   }
 }
 
+QuadrotorModel::StateTangent QuadrotorModel::StateTangent::Zero() {
+  return {.body_velocity = manif::SE3Tangentd::Zero(),
+          .body_acceleration = manif::SE3Tangentd::Zero()};
+}
+
 // uses rk4 to integrate the continuous dynamics
 QuadrotorModel::State QuadrotorModel::discrete_dynamics(
     const State &x, const Control &u, const double dt_s,
     DynamicsDifferentials *diffs) const {
-  // StateJacobian J_x;
-  // ControlJacobian J_u;
-  // const auto x_next = x.origin_from_com.compose(u, J_x, J_u);
-  const auto k1 = continuous_dynamics(x, u);
-  const auto k2 = continuous_dynamics(detail::euler_step(x, k1, dt_s / 2), u);
-  const auto k3 = continuous_dynamics(detail::euler_step(x, k2, dt_s / 2), u);
-  const auto k4 = continuous_dynamics(detail::euler_step(x, k3, dt_s), u);
+  constexpr std::array<float, 4> coeffs{1.0 / 6.0, 2.0 / 6.0, 2.0 / 6.0,
+                                        1.0 / 6.0};
+  const double half_dt_s = dt_s / 2.0;
+  const std::array<double, 4> dt_s_table{0.0, half_dt_s, half_dt_s, dt_s};
 
-  const auto x_dot = (k1 + 2 * k2 + 2 * k3 + k4) / 6.0;
-  return detail::euler_step(x, x_dot, dt_s);
-
-  /*
-  if (diffs) {
-    diffs->J_x = StateJacobian::Zero();
-    diffs->J_u = ControlJacobian::Zero();
+  auto k = QuadrotorModel::StateTangent::Zero();
+  auto x_dot = QuadrotorModel::StateTangent::Zero();
+  for (int i = 0; i < 4; ++i) {
+    k = continuous_dynamics(detail::euler_step(x, k, dt_s_table[i]), u);
+    x_dot = x_dot + coeffs[i] * k;
   }
-  */
+  return detail::euler_step(x, x_dot, dt_s);
 }
 
 QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
@@ -184,6 +185,13 @@ QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
                                        const QuadrotorModel::State &rhs) {
   return {.body_velocity = lhs.inertial_from_body - rhs.inertial_from_body,
           .body_acceleration = lhs.body_velocity - rhs.body_velocity};
+}
+
+std::ostream &operator<<(std::ostream &out,
+                         const QuadrotorModel::State &state) {
+  out << "intertial_from_body: " << state.inertial_from_body
+      << ", body velocity: " << state.body_velocity;
+  return out;
 }
 
 namespace detail {

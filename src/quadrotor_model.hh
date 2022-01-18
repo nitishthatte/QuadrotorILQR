@@ -13,11 +13,14 @@ struct QuadrotorModel {
   };
   static constexpr int CONFIG_DIM = decltype(State::inertial_from_body)::DoF;
   static constexpr int STATE_DIM = 2 * CONFIG_DIM;
+
   struct StateTangent {
     manif::SE3Tangentd body_velocity;
     manif::SE3Tangentd body_acceleration;
 
     Eigen::Vector<double, STATE_DIM> coeffs();
+
+    static StateTangent Zero();
   };
   using StateJacobian = Eigen::Matrix<double, STATE_DIM, STATE_DIM>;
   struct StateBlocks {
@@ -78,6 +81,7 @@ QuadrotorModel::State operator-(const QuadrotorModel::State &x,
 QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
                                        const QuadrotorModel::State &rhs);
 
+std::ostream &operator<<(std::ostream &out, const QuadrotorModel::State &state);
 namespace detail {
 QuadrotorModel::State euler_step(
     const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &x_dot,

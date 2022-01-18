@@ -32,8 +32,7 @@ void check_state_jacobian(const T &fun,
                           const QuadrotorModel::StateJacobian &analytic_diff) {
   const auto EPS = 1e-6;
   for (size_t i = 0; i < STATE_DIM; ++i) {
-    StateTangent delta_x{.body_velocity = manif::SE3Tangentd::Zero(),
-                         .body_acceleration = manif::SE3Tangentd::Zero()};
+    auto delta_x = QuadrotorModel::StateTangent::Zero();
     if (i < CONFIG_DIM) {
       delta_x.body_velocity[i] = EPS;
     } else {
@@ -89,8 +88,9 @@ TEST_F(QuadrotorModelTest,
   x_expected.body_velocity.lin() =
       x_init_.body_velocity.lin() + accel_mpss * dt_s;
 
-  EXPECT_EQ(x_expected.inertial_from_body, x_new.inertial_from_body);
-  EXPECT_EQ(x_expected.body_velocity, x_new.body_velocity);
+  EXPECT_TRUE(x_expected.inertial_from_body.translation().isApprox(
+      x_new.inertial_from_body.translation(), 1e-6));
+  EXPECT_TRUE(x_expected.body_velocity.isApprox(x_new.body_velocity, 1e-6));
 }
 
 TEST_F(QuadrotorModelTest, DiscreteDynamicsUpdatesRotationalStatesCorrectly) {
@@ -110,9 +110,13 @@ TEST_F(QuadrotorModelTest, DiscreteDynamicsUpdatesRotationalStatesCorrectly) {
   x_expected.body_velocity.ang() =
       x_init_.body_velocity.ang() + rot_accel_radpss * dt_s;
 
-  EXPECT_EQ(x_expected.inertial_from_body.rotation(),
-            x_new.inertial_from_body.rotation());
-  EXPECT_EQ(x_expected.body_velocity.ang(), x_new.body_velocity.ang());
+  EXPECT_LT((x_expected.inertial_from_body.asSO3().inverse() *
+             x_new.inertial_from_body.asSO3())
+                .log()
+                .weightedNorm(),
+            1e-6);
+  EXPECT_TRUE(
+      x_expected.body_velocity.ang().isApprox(x_new.body_velocity.ang(), 1e-6));
 }
 
 TEST(QuadrotorContinuousDynamics, StateJacobianCloseToFiniteDifference) {
