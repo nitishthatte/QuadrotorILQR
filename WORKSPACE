@@ -79,7 +79,7 @@ filegroup(
         "make install",
         "ln -s bazel_install/bin/python3 python_bin",
     ],
-    #sha256 = "b1d3a76420375343b5e8a22fceb1ac65b77193e9ed27146524f0a9db058728ea",
+    sha256 = "06828c04a573c073a4e51c4292a27c1be4ae26621c3edc7cf9318418ce3b6d27",
     strip_prefix = "Python-3.9.9",
     urls = ["https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz"],
 )

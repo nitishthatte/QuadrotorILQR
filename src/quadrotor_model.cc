@@ -63,8 +63,8 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
       u;
 
   xdot.body_acceleration.ang() =
-      inertia_.inverse() * (M_Nm - (xdot.body_velocity.asSO3().hat() *
-                                    inertia_ * xdot.body_velocity.ang()));
+      inertia_llt_.solve((M_Nm - (xdot.body_velocity.asSO3().hat() * inertia_ *
+                                  xdot.body_velocity.ang())));
 
   if (diffs) {
     diffs->J_x = StateJacobian::Zero();
