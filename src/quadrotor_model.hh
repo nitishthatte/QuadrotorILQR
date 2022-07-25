@@ -41,11 +41,17 @@ struct QuadrotorModel {
     ControlJacobian J_u;
   };
 
+  struct BinaryStateFuncDiffs {
+    QuadrotorModel::StateJacobian J_x_lhs;
+    QuadrotorModel::StateJacobian J_x_rhs;
+  };
+
   double mass_kg_;
   Eigen::Matrix3d inertia_;
   Eigen::LLT<Eigen::Matrix3d> inertia_llt_;
   double arm_length_m_;
   double torque_to_thrust_ratio_m_;
+  Eigen::Matrix<double, 3, 4> moment_arms_;
 
   State discrete_dynamics(const State &x, const Control &u, const double dt_s,
                           DynamicsDifferentials *diffs = nullptr) const;
@@ -56,10 +62,10 @@ struct QuadrotorModel {
 };
 
 QuadrotorModel::StateTangent operator*(
-    const double scalar, const QuadrotorModel::StateTangent &tangent);
+    double scalar, const QuadrotorModel::StateTangent &tangent);
 
 QuadrotorModel::StateTangent operator/(
-    const QuadrotorModel::StateTangent &tangent, const double scalar);
+    const QuadrotorModel::StateTangent &tangent, double scalar);
 
 QuadrotorModel::StateTangent operator+(const QuadrotorModel::StateTangent &lhs,
                                        const QuadrotorModel::StateTangent &rhs);
@@ -70,10 +76,9 @@ QuadrotorModel::StateTangent operator-(const QuadrotorModel::StateTangent &lhs,
 QuadrotorModel::State operator+(const QuadrotorModel::State &x,
                                 const QuadrotorModel::StateTangent &tangent);
 
-QuadrotorModel::State add(const QuadrotorModel::State &x,
-                          const QuadrotorModel::StateTangent &tangent,
-                          QuadrotorModel::StateJacobian *J_x = nullptr,
-                          QuadrotorModel::StateJacobian *J_t = nullptr);
+QuadrotorModel::State add(
+    const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &tangent,
+    QuadrotorModel::BinaryStateFuncDiffs *diffs = nullptr);
 
 QuadrotorModel::State operator-(const QuadrotorModel::State &x,
                                 const QuadrotorModel::StateTangent &tangent);
@@ -85,7 +90,6 @@ std::ostream &operator<<(std::ostream &out, const QuadrotorModel::State &state);
 namespace detail {
 QuadrotorModel::State euler_step(
     const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &x_dot,
-    const double dt_s, QuadrotorModel::StateJacobian *J_x_ptr = nullptr,
-    QuadrotorModel::StateJacobian *J_x_dot_ptr = nullptr);
+    double dt_s, QuadrotorModel::BinaryStateFuncDiffs *diffs = nullptr);
 }
 }  // namespace src

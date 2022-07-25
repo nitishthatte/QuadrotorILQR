@@ -13,7 +13,11 @@ QuadrotorModel::QuadrotorModel(const double mass_kg,
     : mass_kg_{mass_kg},
       inertia_{inertia},
       arm_length_m_{arm_length_m},
-      torque_to_thrust_ratio_m_{torque_to_thrust_ratio_m} {
+      torque_to_thrust_ratio_m_{torque_to_thrust_ratio_m},
+      moment_arms_{{0, -arm_length_m_, 0, arm_length_m_},
+                   {arm_length_m_, 0.0, -arm_length_m_, 0.0},
+                   {-torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_,
+                    -torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_}} {
   inertia_llt_ = inertia_.llt();
   if (inertia_llt_.info() == Eigen::NumericalIssue ||
       !inertia_.isApprox(inertia_.transpose())) {
@@ -26,10 +30,26 @@ QuadrotorModel::StateTangent QuadrotorModel::StateTangent::Zero() {
           .body_acceleration = manif::SE3Tangentd::Zero()};
 }
 
-// uses rk4 to integrate the continuous dynamics
+// uses euler integration to integrate the continuous dynamics
 QuadrotorModel::State QuadrotorModel::discrete_dynamics(
     const State &x, const Control &u, const double dt_s,
     DynamicsDifferentials *diffs) const {
+  const auto x_dot = continuous_dynamics(x, u, diffs);
+
+  QuadrotorModel::BinaryStateFuncDiffs *euler_diffs_ptr =
+      diffs ? new QuadrotorModel::BinaryStateFuncDiffs{} : nullptr;
+  const auto x_next = detail::euler_step(x, x_dot, dt_s, euler_diffs_ptr);
+
+  if (euler_diffs_ptr && diffs) {
+    diffs->J_x =
+        euler_diffs_ptr->J_x_lhs + euler_diffs_ptr->J_x_rhs * diffs->J_x;
+    diffs->J_u = euler_diffs_ptr->J_x_rhs * diffs->J_u;
+  }
+
+  return x_next;
+}
+
+/*
   constexpr std::array<float, 4> coeffs{1.0 / 6.0, 2.0 / 6.0, 2.0 / 6.0,
                                         1.0 / 6.0};
   const double half_dt_s = dt_s / 2.0;
@@ -41,8 +61,7 @@ QuadrotorModel::State QuadrotorModel::discrete_dynamics(
     k = continuous_dynamics(detail::euler_step(x, k, dt_s_table[i]), u);
     x_dot = x_dot + coeffs[i] * k;
   }
-  return detail::euler_step(x, x_dot, dt_s);
-}
+*/
 
 QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
     const State &x, const Control &u, DynamicsDifferentials *diffs) const {
@@ -54,13 +73,7 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
        u.sum() * Eigen::Vector3d::UnitZ()) /
       mass_kg_;
 
-  const Eigen::Vector3d M_Nm =
-      Eigen::Matrix<double, 3, 4>{
-          {0, -arm_length_m_, 0, arm_length_m_},
-          {arm_length_m_, 0.0, -arm_length_m_, 0.0},
-          {-torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_,
-           -torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_}} *
-      u;
+  const Eigen::Vector3d M_Nm = moment_arms_ * u;
 
   xdot.body_acceleration.ang() =
       inertia_llt_.solve((M_Nm - (xdot.body_velocity.asSO3().hat() * inertia_ *
@@ -98,6 +111,14 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
 
     diffs->J_x(StateBlocks::body_ang_vel, StateBlocks::body_ang_vel) =
         -inertia_llt_.solve(Jomega_diff);
+
+    diffs->J_u = ControlJacobian::Zero();
+
+    diffs->J_u(StateBlocks::body_lin_vel[2], Eigen::all) =
+        Eigen::Matrix<double, 1, 4>::Constant(1.0 / mass_kg_);
+
+    diffs->J_u(StateBlocks::body_ang_vel, Eigen::all) =
+        inertia_llt_.solve(moment_arms_);
   }
   return xdot;
 }
@@ -140,11 +161,10 @@ QuadrotorModel::StateTangent operator-(
 
 QuadrotorModel::State add(const QuadrotorModel::State &x,
                           const QuadrotorModel::StateTangent &tangent,
-                          QuadrotorModel::StateJacobian *J_x_ptr,
-                          QuadrotorModel::StateJacobian *J_t_ptr) {
+                          QuadrotorModel::BinaryStateFuncDiffs *diffs) {
   constexpr auto CONFIG_DIM = QuadrotorModel::CONFIG_DIM;
   using StateBlocks = QuadrotorModel::StateBlocks;
-  if (J_x_ptr && J_t_ptr) {
+  if (diffs) {
     Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM> J_plus_x_inertial_from_body;
     Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM> J_plus_tangent_body_vel;
     const QuadrotorModel::State x_next{
@@ -153,15 +173,14 @@ QuadrotorModel::State add(const QuadrotorModel::State &x,
             J_plus_tangent_body_vel),
         .body_velocity = x.body_velocity + tangent.body_acceleration};
 
-    auto &J_x = *J_x_ptr;
-    J_x = QuadrotorModel::StateJacobian::Identity();
-    J_x(StateBlocks::inertial_from_body, StateBlocks::inertial_from_body) =
+    diffs->J_x_lhs = QuadrotorModel::StateJacobian::Identity();  // df/dx
+    diffs->J_x_lhs(StateBlocks::inertial_from_body,
+                   StateBlocks::inertial_from_body) =
         J_plus_x_inertial_from_body;
 
-    auto &J_t = *J_t_ptr;
-    J_t = QuadrotorModel::StateJacobian::Identity();
-    J_t(StateBlocks::inertial_from_body, StateBlocks::inertial_from_body) =
-        J_plus_tangent_body_vel;
+    diffs->J_x_rhs = QuadrotorModel::StateJacobian::Identity();  // df/dt
+    diffs->J_x_rhs(StateBlocks::inertial_from_body,
+                   StateBlocks::inertial_from_body) = J_plus_tangent_body_vel;
 
     return x_next;
   }
@@ -198,11 +217,10 @@ namespace detail {
 QuadrotorModel::State euler_step(const QuadrotorModel::State &x,
                                  const QuadrotorModel::StateTangent &x_dot,
                                  const double dt_s,
-                                 QuadrotorModel::StateJacobian *J_x_ptr,
-                                 QuadrotorModel::StateJacobian *J_x_dot_ptr) {
-  if (J_x_ptr && J_x_dot_ptr) {
-    const auto x_next = add(x, dt_s * x_dot, J_x_ptr, J_x_dot_ptr);
-    *J_x_dot_ptr *= dt_s;
+                                 QuadrotorModel::BinaryStateFuncDiffs *diffs) {
+  if (diffs) {
+    const auto x_next = add(x, dt_s * x_dot, diffs);
+    diffs->J_x_rhs *= dt_s;  // scale df/dxdot
     return x_next;
   }
   return x + dt_s * x_dot;
