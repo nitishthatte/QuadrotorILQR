@@ -86,7 +86,11 @@ QuadrotorModel::State operator-(const QuadrotorModel::State &x,
 QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
                                        const QuadrotorModel::State &rhs);
 
+bool operator==(const QuadrotorModel::State &lhs,
+                const QuadrotorModel::State &rhs);
+
 std::ostream &operator<<(std::ostream &out, const QuadrotorModel::State &state);
+
 namespace detail {
 QuadrotorModel::State euler_step(
     const QuadrotorModel::State &x, const QuadrotorModel::StateTangent &x_dot,

@@ -206,6 +206,12 @@ QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
           .body_acceleration = lhs.body_velocity - rhs.body_velocity};
 }
 
+bool operator==(const QuadrotorModel::State &lhs,
+                const QuadrotorModel::State &rhs) {
+  return lhs.body_velocity == rhs.body_velocity &&
+         lhs.inertial_from_body == rhs.inertial_from_body;
+}
+
 std::ostream &operator<<(std::ostream &out,
                          const QuadrotorModel::State &state) {
   out << "intertial_from_body: " << state.inertial_from_body

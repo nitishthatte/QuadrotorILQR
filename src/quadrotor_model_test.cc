@@ -295,6 +295,34 @@ TEST(StatePlusStateTangentAdd, ComputesCorrectJacobianWrtTangent) {
   check_state_jacobian(fun, diffs.J_x_rhs);
 }
 
+TEST(StateEquality, ReturnsTrueIfStatesSame) {
+  const State lhs{.inertial_from_body =
+                      manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                             1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                          .exp(),
+                  .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                      2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  EXPECT_EQ(lhs, lhs);
+}
+
+TEST(StateEquality, ReturnsFalseIfStatesDifferent) {
+  const State lhs{.inertial_from_body =
+                      manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                             1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                          .exp(),
+                  .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                      2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+
+  const State rhs{.inertial_from_body =
+                      manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                             2.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                          .exp(),
+                  .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                      2.0, 3.0, 4.0, 5.0, 6.5, 7.0}};
+
+  EXPECT_NE(lhs, rhs);
+}
+
 TEST(EulerStep, ComputesCorrectJacobianWrtState) {
   const State x{.inertial_from_body =
                     manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
