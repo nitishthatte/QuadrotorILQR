@@ -64,9 +64,6 @@ cc_test(
 cc_library(
     name = "trajectory",
     hdrs = ["trajectory.hh"],
-    deps = [
-        ":dynamics",
-    ],
 )
 
 cc_test(
@@ -89,6 +86,7 @@ cc_library(
     srcs = ["trajectory_to_proto.cc"],
     hdrs = ["trajectory_to_proto.hh"],
     deps = [
+        ":quadrotor_model",
         ":trajectory",
         ":trajectory_cc_proto",
     ],

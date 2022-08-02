@@ -1,9 +1,9 @@
 
 #pragma once
 
-#include <vector>
+#include <sys/_types/_time_t.h>
 
-#include "src/dynamics.hh"
+#include <vector>
 
 namespace src {
 
@@ -19,12 +19,6 @@ bool operator==(const TrajectoryPoint<ModelT> &lhs,
                 const TrajectoryPoint<ModelT> &rhs) {
   return lhs.time_s == rhs.time_s && lhs.control == rhs.control &&
          lhs.state == rhs.state;
-}
-
-template <class ModelT>
-std::ostream &operator<<(std::ostream &out, const TrajectoryPoint<ModelT> &pt) {
-  return out << "time_s: " << pt.time_s << ", state: " << pt.state
-             << ", control: " << pt.control;
 }
 
 template <class ModelT>

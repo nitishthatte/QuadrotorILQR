@@ -2,23 +2,38 @@
 
 #include <gtest/gtest.h>
 
-namespace src {
+#include "quadrotor_model.hh"
 
-using State = LieDynamics::State;
-using Control = LieDynamics::Control;
+namespace src::proto {
+
+using State = QuadrotorModel::State;
+constexpr auto CONFIG_DIM = QuadrotorModel::CONFIG_DIM;
+using Control = QuadrotorModel::Control;
 
 TEST(LieTrajectory, RoundTripTest) {
-  Trajectory<LieDynamics> traj{
-      {.time_s = 1.0,
-       .state = manif::SE3d{1.0, 2.0, 3.0, 4.0, 5.0, 6.0},
-       .control = manif::SE3d{2.0, 3.0, 4.0, 5.0, 6.0, 7.0}},
-      {.time_s = 2.0,
-       .state = manif::SE3d{4.0, 5.0, 6.0, 7.0, 8.0, 9.0},
-       .control = manif::SE3d{15.0, 14.0, 13.0, 12.0, 11.0, 10.0}},
+  const State x0{.inertial_from_body =
+                     manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                            1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                         .exp(),
+                 .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                     2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  const Control u0 = Eigen::Vector4d{3.0, 4.0, 5.0, 6.0};
+
+  const State x1{.inertial_from_body =
+                     manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                            2.0, 3.0, 4.0, 5.0, 6.0, 7.0}}
+                         .exp(),
+                 .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                     3.0, 4.0, 5.0, 6.0, 7.0, 8.0}};
+  const Control u1 = Eigen::Vector4d{4.0, 5.0, 6.0, 7.0};
+
+  Trajectory<QuadrotorModel> traj{
+      {.time_s = 1.0, .state = x0, .control = u0},
+      {.time_s = 2.0, .state = x1, .control = u1},
   };
 
   const auto round_trip = from_proto(to_proto(traj));
 
   EXPECT_EQ(traj, round_trip);
 }
-}  // namespace src
+}  // namespace src::proto
