@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "src/dynamics.hh"
 #include "src/trajectory.hh"
 
 namespace src {
@@ -40,19 +39,20 @@ class CostFunction {
     const auto &x_d = desired_trajectory_.at(i).state;
     const auto &u_d = desired_trajectory_.at(i).control;
 
-    typename ModelT::State::Tangent::Jacobian J_delta_x, J_delta_u;
-    const auto delta_x = x.minus(x_d, J_delta_x);
-    const auto delta_u = u.minus(u_d, J_delta_u);
+    typename ModelT::BinaryStateFuncDiffs minus_diffs;
+    const auto delta_x = minus(x, x_d, &minus_diffs);
+    const typename ModelT::StateJacobian &J_delta_x = minus_diffs.J_x_lhs;
+    const auto delta_u = u - u_d;
 
     const auto cost = (delta_x.coeffs().transpose() * Q_ * delta_x.coeffs() +
-                       delta_u.coeffs().transpose() * R_ * delta_u.coeffs())(0);
+                       delta_u.transpose() * R_ * delta_u)(0);
 
     if (diffs) {
       diffs->x = 2 * delta_x.coeffs().transpose() * Q_ * J_delta_x;
       diffs->xx = 2 * J_delta_x.transpose() * Q_ * J_delta_x;
 
-      diffs->u = 2 * delta_u.coeffs().transpose() * R_ * J_delta_u;
-      diffs->uu = 2 * J_delta_u.transpose() * R_ * J_delta_u;
+      diffs->u = 2 * delta_u.transpose() * R_;
+      diffs->uu = 2 * R_;
 
       diffs->xu = CostHessianStateControl::Zero();
     }

@@ -18,7 +18,10 @@ struct QuadrotorModel {
     manif::SE3Tangentd body_velocity;
     manif::SE3Tangentd body_acceleration;
 
-    Eigen::Vector<double, STATE_DIM> coeffs();
+    Eigen::Vector<double, STATE_DIM> coeffs() const;
+
+    double &operator[](int i);
+    const double &operator[](int i) const;
 
     static StateTangent Zero();
   };
@@ -85,6 +88,10 @@ QuadrotorModel::State operator-(const QuadrotorModel::State &x,
 
 QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
                                        const QuadrotorModel::State &rhs);
+
+QuadrotorModel::StateTangent minus(const QuadrotorModel::State &lhs,
+                                   const QuadrotorModel::State &rhs,
+                                   QuadrotorModel::BinaryStateFuncDiffs *diffs);
 
 bool operator==(const QuadrotorModel::State &lhs,
                 const QuadrotorModel::State &rhs);

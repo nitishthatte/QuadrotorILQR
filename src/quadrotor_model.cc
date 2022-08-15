@@ -124,13 +124,27 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
 }
 
 Eigen::Vector<double, QuadrotorModel::STATE_DIM>
-QuadrotorModel::StateTangent::coeffs() {
+QuadrotorModel::StateTangent::coeffs() const {
   Eigen::Vector<double, QuadrotorModel::STATE_DIM> coeffs;
   coeffs(Eigen::seq(0, QuadrotorModel::STATE_DIM / 2 - 1)) =
       this->body_velocity.coeffs();
   coeffs(Eigen::seq(QuadrotorModel::STATE_DIM / 2, Eigen::last)) =
       this->body_acceleration.coeffs();
   return coeffs;
+}
+
+double &QuadrotorModel::StateTangent::operator[](int i) {
+  if (i < CONFIG_DIM) {
+    return this->body_velocity.coeffs()[i];
+  }
+  return this->body_acceleration.coeffs()[i - CONFIG_DIM];
+}
+
+const double &QuadrotorModel::StateTangent::operator[](int i) const {
+  if (i < CONFIG_DIM) {
+    return this->body_velocity.coeffs()[i];
+  }
+  return this->body_acceleration.coeffs()[i - CONFIG_DIM];
 }
 
 QuadrotorModel::StateTangent operator*(
@@ -167,7 +181,7 @@ QuadrotorModel::State add(const QuadrotorModel::State &x,
   if (diffs) {
     Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM> J_plus_x_inertial_from_body;
     Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM> J_plus_tangent_body_vel;
-    const QuadrotorModel::State x_next{
+    const QuadrotorModel::State added{
         .inertial_from_body = x.inertial_from_body.plus(
             tangent.body_velocity, J_plus_x_inertial_from_body,
             J_plus_tangent_body_vel),
@@ -182,7 +196,7 @@ QuadrotorModel::State add(const QuadrotorModel::State &x,
     diffs->J_x_rhs(StateBlocks::inertial_from_body,
                    StateBlocks::inertial_from_body) = J_plus_tangent_body_vel;
 
-    return x_next;
+    return added;
   }
   return x + tangent;
 }
@@ -204,6 +218,37 @@ QuadrotorModel::StateTangent operator-(const QuadrotorModel::State &lhs,
                                        const QuadrotorModel::State &rhs) {
   return {.body_velocity = lhs.inertial_from_body - rhs.inertial_from_body,
           .body_acceleration = lhs.body_velocity - rhs.body_velocity};
+}
+
+QuadrotorModel::StateTangent minus(
+    const QuadrotorModel::State &lhs, const QuadrotorModel::State &rhs,
+    QuadrotorModel::BinaryStateFuncDiffs *diffs) {
+  constexpr auto CONFIG_DIM = QuadrotorModel::CONFIG_DIM;
+  using StateBlocks = QuadrotorModel::StateBlocks;
+  if (diffs) {
+    Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM>
+        J_minus_lhs_inertial_from_body;
+    Eigen::Matrix<double, CONFIG_DIM, CONFIG_DIM>
+        J_minus_rhs_inertial_from_body;
+    const QuadrotorModel::StateTangent difference{
+        .body_velocity = lhs.inertial_from_body.minus(
+            rhs.inertial_from_body, J_minus_lhs_inertial_from_body,
+            J_minus_rhs_inertial_from_body),
+        .body_acceleration = lhs.body_velocity - rhs.body_velocity};
+
+    diffs->J_x_lhs = QuadrotorModel::StateJacobian::Identity();  // df/dlhs
+    diffs->J_x_lhs(StateBlocks::inertial_from_body,
+                   StateBlocks::inertial_from_body) =
+        J_minus_lhs_inertial_from_body;
+
+    diffs->J_x_rhs = -QuadrotorModel::StateJacobian::Identity();  // df/drhs
+    diffs->J_x_rhs(StateBlocks::inertial_from_body,
+                   StateBlocks::inertial_from_body) =
+        J_minus_rhs_inertial_from_body;
+
+    return difference;
+  }
+  return lhs - rhs;
 }
 
 bool operator==(const QuadrotorModel::State &lhs,

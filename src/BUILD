@@ -4,25 +4,6 @@ load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 load("@py_deps//:requirements.bzl", "requirement")
 
 cc_library(
-    name = "dynamics",
-    srcs = ["dynamics.cc"],
-    hdrs = ["dynamics.hh"],
-    deps = [
-        "@com_github_artivis_manif//:manif",
-    ],
-)
-
-cc_test(
-    name = "dynamics_test",
-    size = "small",
-    srcs = ["dynamics_test.cc"],
-    deps = [
-        ":dynamics",
-        "@gtest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "quadrotor_model",
     srcs = ["quadrotor_model.cc"],
     hdrs = ["quadrotor_model.hh"],
@@ -45,7 +26,6 @@ cc_library(
     name = "cost",
     hdrs = ["cost.hh"],
     deps = [
-        ":dynamics",
         ":trajectory",
         "@com_github_artivis_manif//:manif",
     ],
@@ -57,6 +37,7 @@ cc_test(
     srcs = ["cost_test.cc"],
     deps = [
         ":cost",
+        ":quadrotor_model",
         "@gtest//:gtest_main",
     ],
 )
@@ -148,7 +129,6 @@ cc_library(
     hdrs = ["ilqr.hh"],
     deps = [
         ":cost",
-        ":dynamics",
         ":ilqr_options",
         ":trajectory",
     ],

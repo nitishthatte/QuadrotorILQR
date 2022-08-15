@@ -295,6 +295,79 @@ TEST(StatePlusStateTangentAdd, ComputesCorrectJacobianWrtTangent) {
   check_state_jacobian(fun, diffs.J_x_rhs);
 }
 
+TEST(StateMinusState, ComputesCorrectJacobianWrtLHS) {
+  const State lhs{.inertial_from_body =
+                      manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                             1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                          .exp(),
+                  .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                      2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  const State rhs{.inertial_from_body =
+                      manif::SE3Tangentd{2.0 *
+                                         Eigen::Vector<double, CONFIG_DIM>{
+                                             1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                          .exp(),
+                  .body_velocity = 2.0 * Eigen::Vector<double, CONFIG_DIM>{
+                                             2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+
+  QuadrotorModel::BinaryStateFuncDiffs diffs;
+  minus(lhs, rhs, &diffs);
+
+  const auto fun = [&lhs, &rhs](const QuadrotorModel::StateTangent &delta_lhs) {
+    return (lhs + delta_lhs) - rhs;
+  };
+
+  check_state_jacobian(fun, diffs.J_x_lhs);
+}
+
+TEST(StateMinusState, ComputesCorrectJacobianWrtRHS) {
+  const State lhs{.inertial_from_body =
+                      manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+                                             1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                          .exp(),
+                  .body_velocity = Eigen::Vector<double, CONFIG_DIM>{
+                      2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+  const State rhs{.inertial_from_body =
+                      manif::SE3Tangentd{2.0 *
+                                         Eigen::Vector<double, CONFIG_DIM>{
+                                             1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}
+                          .exp(),
+                  .body_velocity = 2.0 * Eigen::Vector<double, CONFIG_DIM>{
+                                             2.0, 3.0, 4.0, 5.0, 6.0, 7.0}};
+
+  QuadrotorModel::BinaryStateFuncDiffs diffs;
+  minus(lhs, rhs, &diffs);
+
+  const auto fun = [&lhs, &rhs](const QuadrotorModel::StateTangent &delta_rhs) {
+    return lhs - (rhs + delta_rhs);
+  };
+
+  check_state_jacobian(fun, diffs.J_x_rhs);
+}
+
+TEST(StateTangent, SubscriptOperatorReturnsCorrectCoeffs) {
+  const StateTangent tangent{
+      .body_velocity = manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
+          1.0, 2.0, 3.0, 4.0, 5.0, 6.0}},
+      .body_acceleration =
+          manif::SE3Tangentd{2.0 * Eigen::Vector<double, CONFIG_DIM>{1.0, 2.0,
+                                                                     3.0, 4.0,
+                                                                     5.0, 6.0}},
+  };
+  EXPECT_EQ(tangent[0], 1.0);
+  EXPECT_EQ(tangent[1], 2.0);
+  EXPECT_EQ(tangent[2], 3.0);
+  EXPECT_EQ(tangent[3], 4.0);
+  EXPECT_EQ(tangent[4], 5.0);
+  EXPECT_EQ(tangent[5], 6.0);
+  EXPECT_EQ(tangent[6], 2.0);
+  EXPECT_EQ(tangent[7], 4.0);
+  EXPECT_EQ(tangent[8], 6.0);
+  EXPECT_EQ(tangent[9], 8.0);
+  EXPECT_EQ(tangent[10], 10.0);
+  EXPECT_EQ(tangent[11], 12.0);
+}
+
 TEST(StateEquality, ReturnsTrueIfStatesSame) {
   const State lhs{.inertial_from_body =
                       manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
