@@ -140,6 +140,7 @@ cc_test(
     srcs = ["ilqr_test.cc"],
     deps = [
         ":ilqr",
+        ":quadrotor_model",
         "@gtest//:gtest_main",
     ],
 )

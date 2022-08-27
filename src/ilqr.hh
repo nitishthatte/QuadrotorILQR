@@ -4,7 +4,6 @@
 #include <string>
 
 #include "src/cost.hh"
-#include "src/dynamics.hh"
 #include "src/ilqr_options.hh"
 #include "src/trajectory.hh"
 
@@ -24,22 +23,27 @@ inline double calculate_cost_reduction(
 
 template <class ModelT>
 struct ILQR {
-  ILQR(CostFunction<ModelT> cost_function, ILQROptions options)
-      : cost_function_{std::move(cost_function)},
+  ILQR(ModelT model, CostFunction<ModelT> cost_function, double dt_s,
+       ILQROptions options)
+      : model_{std::move(model)},
+        cost_function_{std::move(cost_function)},
+        dt_s_{dt_s},
         options_{std::move(options)} {}
 
+  ModelT model_;
   using CostFunc = CostFunction<ModelT>;
   CostFunc cost_function_;
+  double dt_s_;
   ILQROptions options_;
 
   using DynamicsDiffs = typename ModelT::DynamicsDifferentials;
   using CostDiffs = typename CostFunction<ModelT>::CostDifferentials;
 
   using FeedbackGains =
-      Eigen::Matrix<double, ModelT::STATE_DIM, ModelT::CONTROL_DIM>;
+      Eigen::Matrix<double, ModelT::CONTROL_DIM, ModelT::STATE_DIM>;
 
   struct ControlUpdate {
-    typename ModelT::Control::Tangent ff_update;
+    typename ModelT::Control ff_update;
     FeedbackGains feedback;
   };
 
@@ -92,7 +96,8 @@ struct ILQR {
     detail::CostReductionTerms cost_reduction_terms{};
     for (int i = num_pts - 1; i >= 0; --i) {
       DynamicsDiffs dynamics_diffs;
-      ModelT::dynamics(traj[i].state, traj[i].control, &dynamics_diffs);
+      model_.discrete_dynamics(traj[i].state, traj[i].control, dt_s_,
+                               &dynamics_diffs);
       const auto &[J_x, J_u] = dynamics_diffs;
 
       CostDiffs C;
@@ -108,7 +113,7 @@ struct ILQR {
 
       const auto Quu_ldlt = Q.uu.ldlt();
       const FeedbackGains K = -Quu_ldlt.solve(Q.xu.transpose());
-      const typename ModelT::Control::Tangent k = -Quu_ldlt.solve(Q.u);
+      const typename ModelT::Control k = -Quu_ldlt.solve(Q.u);
       ctrl_update_traj.emplace_back(
           ControlUpdate{.ff_update = k, .feedback = K});
 
@@ -116,11 +121,11 @@ struct ILQR {
       v_xx = Q.xx - K.transpose() * Q.uu * K;
 
       // expected cost reduction
-      const typename ModelT::Control::Tangent &ff_update =
+      const typename ModelT::Control &ff_update =
           ctrl_update_traj.back().ff_update;
-      cost_reduction_terms.QuTk += (Q.u.transpose() * ff_update.coeffs())(0);
+      cost_reduction_terms.QuTk += (Q.u.transpose() * ff_update)(0);
       cost_reduction_terms.kTQuuk +=
-          (ff_update.coeffs().transpose() * Q.uu * ff_update.coeffs())(0);
+          (ff_update.transpose() * Q.uu * ff_update)(0);
     }
 
     std::reverse(ctrl_update_traj.begin(), ctrl_update_traj.end());
@@ -138,17 +143,17 @@ struct ILQR {
 
     auto state = current_traj.front().state;
     for (int i = 0; i < current_traj.size(); ++i) {
-      auto control =
-          current_traj[i].control +
-          line_search_alpha * ctrl_update_traj[i].ff_update +
-          ctrl_update_traj[i].feedback * (state - current_traj[i].state);
+      auto control = current_traj[i].control +
+                     line_search_alpha * ctrl_update_traj[i].ff_update +
+                     ctrl_update_traj[i].feedback *
+                         (state - current_traj[i].state).coeffs();
 
       updated_traj.emplace_back(
           TrajectoryPoint<ModelT>{.time_s = current_traj[i].time_s,
                                   .state = state,
                                   .control = control});
 
-      state = ModelT::dynamics(state, control);
+      state = model_.discrete_dynamics(state, control, dt_s_);
     }
 
     return updated_traj;
