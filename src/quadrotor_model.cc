@@ -68,10 +68,9 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
   StateTangent xdot;
   xdot.body_velocity = x.body_velocity;
   xdot.body_acceleration.lin() =
-      (-g * x.inertial_from_body.rotation().transpose() *
-           Eigen::Vector3d::UnitZ() +
-       u.sum() * Eigen::Vector3d::UnitZ()) /
-      mass_kg_;
+      -g * x.inertial_from_body.rotation().transpose() *
+          Eigen::Vector3d::UnitZ() +
+      u.sum() * Eigen::Vector3d::UnitZ() / mass_kg_;
 
   const Eigen::Vector3d M_Nm = moment_arms_ * u;
 
@@ -259,7 +258,7 @@ bool operator==(const QuadrotorModel::State &lhs,
 
 std::ostream &operator<<(std::ostream &out,
                          const QuadrotorModel::State &state) {
-  out << "intertial_from_body: " << state.inertial_from_body
+  out << "inertial_from_body: " << state.inertial_from_body
       << ", body velocity: " << state.body_velocity;
   return out;
 }

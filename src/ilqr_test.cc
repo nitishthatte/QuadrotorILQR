@@ -29,30 +29,39 @@ Trajectory<QuadrotorModel> create_identity_traj(const int num_pts,
     traj.emplace_back(
         TrajectoryPoint<QuadrotorModel>{.time_s = time_s,
                                         .state = create_identity_state(),
-                                        .control = Control::Identity()});
+                                        .control = Control::Zero()});
     time_s += dt_s;
   }
   return traj;
 }
 
-bool approx_eq(const State &lhs, const State &rhs, const double tol) {
+bool approx_state_eq(const State &lhs, const State &rhs, const double tol) {
   const auto lhs_body_from_rhs_body =
       lhs.inertial_from_body.inverse() * rhs.inertial_from_body;
-  return lhs_body_from_rhs_body.coeffs().isApproxToConstant(0.0, tol) &&
+  return lhs_body_from_rhs_body.log().coeffs().norm() < tol &&
          lhs.body_velocity.coeffs().isApprox(rhs.body_velocity.coeffs());
 }
 
+void check_approx_traj_eq(const Trajectory<QuadrotorModel> &lhs,
+                          const Trajectory<QuadrotorModel> &rhs,
+                          const double tol) {
+  ASSERT_EQ(lhs.size(), rhs.size());
+  for (size_t i = 0; i < lhs.size(); ++i) {
+    EXPECT_PRED3(approx_state_eq, lhs[i].state, rhs[i].state, tol);
+    EXPECT_TRUE(lhs[i].control.isApprox(rhs[i].control, tol));
+  }
+}
+
 constexpr auto mass_kg = 1.0;
+constexpr auto g_mpss = 9.81;
 }  // namespace
 
 class ILQRFixture : public ::testing::Test {
  protected:
   ILQRFixture() {
-    Control delta_u = Control::Zero();
-    delta_u(0) = 1.0;
     ctrl_update_traj_ = ILQRSolver::ControlUpdateTrajectory{
         N_, ILQRSolver::ControlUpdate{
-                .ff_update = delta_u,
+                .ff_update = Control::Ones(),
                 .feedback = ILQRSolver::FeedbackGains::Zero()}};
   }
 
@@ -82,23 +91,28 @@ class ILQRFixture : public ::testing::Test {
 
 TEST_F(ILQRFixture, ForwardSimGeneratesCorrectTrajectory) {
   // expected new trajectory
+  const Control u = Control::Ones();
+  const auto accel_mpss = u.sum() / mass_kg - g_mpss;
+
   const State state_0 = create_identity_state();
   State state_1 = state_0;
-  state_1.body_velocity.coeffs()(0) = dt_s_;
+  state_1.body_velocity.coeffs()(2) = dt_s_ * accel_mpss;
+
   State state_2 = state_0;
-  state_2.body_velocity.coeffs()(0) = 2.0 * dt_s_;
-  state_2.inertial_from_body.translation()(0) = dt_s_ * dt_s_;
-  const Control control{1.0, 0.0, 0.0, 0.0};
+  manif::SE3Tangentd state_2_offset{};
+  state_2_offset.coeffs()(2) = dt_s_ * dt_s_ * accel_mpss;
+  state_2.inertial_from_body += state_2_offset;
+  state_2.body_velocity.coeffs()(2) = 2.0 * dt_s_ * accel_mpss;
 
   Trajectory<QuadrotorModel> new_traj_expected{
-      {.time_s = 0.0, .state = state_0, .control = control},
-      {.time_s = dt_s_, .state = state_1, .control = control},
-      {.time_s = 2 * dt_s_, .state = state_2, .control = control},
+      {.time_s = 0.0, .state = state_0, .control = u},
+      {.time_s = dt_s_, .state = state_1, .control = u},
+      {.time_s = 2 * dt_s_, .state = state_2, .control = u},
   };
 
   const auto new_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
 
-  EXPECT_EQ(new_traj, new_traj_expected);
+  check_approx_traj_eq(new_traj, new_traj_expected, 1e-6);
 }
 
 TEST_F(ILQRFixture, CostTrajectoryCalculatesCorrectCost) {
@@ -150,10 +164,6 @@ TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {
   const auto initial_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
   const auto opt_traj = ilqr_.solve(initial_traj);
 
-  ASSERT_EQ(opt_traj.size(), current_traj_.size());
-  for (size_t i = 0; i < opt_traj.size(); ++i) {
-    EXPECT_PRED3(approx_eq, current_traj_[i].state, opt_traj[i].state, 1e-6);
-    EXPECT_TRUE(current_traj_[i].control.isApprox(opt_traj[i].control, 1e-6));
-  }
+  check_approx_traj_eq(current_traj_, opt_traj, 1e-6);
 }
 }  // namespace src

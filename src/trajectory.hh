@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <ostream>
 #include <vector>
 
 namespace src {
@@ -17,6 +18,16 @@ bool operator==(const TrajectoryPoint<ModelT> &lhs,
                 const TrajectoryPoint<ModelT> &rhs) {
   return lhs.time_s == rhs.time_s && lhs.control == rhs.control &&
          lhs.state == rhs.state;
+}
+
+template <class ModelT>
+std::ostream &operator<<(std::ostream &out, const TrajectoryPoint<ModelT> &pt) {
+  out << "pt: {\n"
+      << "\ttime_s: " << pt.time_s << ",\n"
+      << "\tstate: " << pt.state << ",\n"
+      << "\tcontrol:" << pt.control.transpose() << "\n"
+      << "}\n";
+  return out;
 }
 
 template <class ModelT>
