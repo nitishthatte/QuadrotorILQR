@@ -119,9 +119,15 @@ TEST_F(ILQRFixture, CostTrajectoryCalculatesCorrectCost) {
   const auto new_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
   const auto cost = ilqr_.cost_trajectory(new_traj);
 
-  const auto expected_cost = dt_s_ * dt_s_ + 5.0 * dt_s_ * dt_s_ + 1.0 * 3;
+  const Control u = Control::Ones();
+  const auto accel_mpss = u.sum() / mass_kg - g_mpss;
+  const auto expected_cost =
+      std::pow(dt_s_ * accel_mpss, 2.0) +
+      std::pow(dt_s_ * dt_s_ * accel_mpss, 2.0) +
+      std::pow(2.0 * dt_s_ * accel_mpss, 2.0)  // state cost
+      + 3 * 4;
 
-  EXPECT_EQ(cost, expected_cost);
+  EXPECT_DOUBLE_EQ(cost, expected_cost);
 }
 
 TEST_F(ILQRFixture, BackwardPassReturnsZeroUpdateIfZeroGradient) {
