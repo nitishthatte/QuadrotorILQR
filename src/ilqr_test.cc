@@ -38,8 +38,18 @@ Trajectory<QuadrotorModel> create_identity_traj(const int num_pts,
 bool approx_state_eq(const State &lhs, const State &rhs, const double tol) {
   const auto lhs_body_from_rhs_body =
       lhs.inertial_from_body.inverse() * rhs.inertial_from_body;
-  return lhs_body_from_rhs_body.log().coeffs().norm() < tol &&
-         lhs.body_velocity.coeffs().isApprox(rhs.body_velocity.coeffs());
+
+  const auto initial_from_body_approx_eq =
+      lhs_body_from_rhs_body.log().coeffs().norm() < tol;
+  const auto body_vel_approx_eq =
+      lhs.body_velocity.coeffs().isApprox(rhs.body_velocity.coeffs()) ||
+      (lhs.body_velocity.coeffs() - rhs.body_velocity.coeffs()).isZero(tol);
+  return initial_from_body_approx_eq && body_vel_approx_eq;
+}
+
+bool approx_control_eq(const Control &lhs, const Control &rhs,
+                       const double tol) {
+  return lhs.isApprox(rhs, tol) || (lhs - rhs).isZero(tol);
 }
 
 void check_approx_traj_eq(const Trajectory<QuadrotorModel> &lhs,
@@ -48,12 +58,11 @@ void check_approx_traj_eq(const Trajectory<QuadrotorModel> &lhs,
   ASSERT_EQ(lhs.size(), rhs.size());
   for (size_t i = 0; i < lhs.size(); ++i) {
     EXPECT_PRED3(approx_state_eq, lhs[i].state, rhs[i].state, tol);
-    EXPECT_TRUE(lhs[i].control.isApprox(rhs[i].control, tol));
+    EXPECT_PRED3(approx_control_eq, lhs[i].control, rhs[i].control, tol);
   }
 }
 
 constexpr auto mass_kg = 1.0;
-constexpr auto g_mpss = 9.81;
 }  // namespace
 
 class ILQRFixture : public ::testing::Test {
@@ -81,7 +90,8 @@ class ILQRFixture : public ::testing::Test {
           mass_kg,
           Eigen::Matrix3d::Identity(),  // inertia
           1.0,                          // arm_length_m
-          1.0                           // torque_to_thrust_ratio_m
+          1.0,                          // torque_to_thrust_ratio_m
+          0.0                           // g_mpss
       },
       CostFunc{Q_, R_, current_traj_}, dt_s_,
       ILQROptions{.line_search_params = LineSearchParams{0.5, 0.5, 10},
@@ -92,7 +102,7 @@ class ILQRFixture : public ::testing::Test {
 TEST_F(ILQRFixture, ForwardSimGeneratesCorrectTrajectory) {
   // expected new trajectory
   const Control u = Control::Ones();
-  const auto accel_mpss = u.sum() / mass_kg - g_mpss;
+  const auto accel_mpss = u.sum() / mass_kg;
 
   const State state_0 = create_identity_state();
   State state_1 = state_0;
@@ -120,7 +130,7 @@ TEST_F(ILQRFixture, CostTrajectoryCalculatesCorrectCost) {
   const auto cost = ilqr_.cost_trajectory(new_traj);
 
   const Control u = Control::Ones();
-  const auto accel_mpss = u.sum() / mass_kg - g_mpss;
+  const auto accel_mpss = u.sum() / mass_kg;
   const auto expected_cost =
       std::pow(dt_s_ * accel_mpss, 2.0) +
       std::pow(dt_s_ * dt_s_ * accel_mpss, 2.0) +
@@ -167,8 +177,17 @@ TEST_F(ILQRFixture, LineSearchFindsStepSizeThatReducesCost) {
 }
 
 TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {
+  // Optimal solution should be current traj. Perform forward simulation first
+  // so that the initial traj is different.
+  for (auto &pt : ctrl_update_traj_) {
+    pt.ff_update(0) *= 100;
+    pt.ff_update(2) *= 100;
+  }
+  std::cerr << "current_traj : " << current_traj_ << std::endl;
   const auto initial_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
+  std::cerr << "initial_traj : " << initial_traj << std::endl;
   const auto opt_traj = ilqr_.solve(initial_traj);
+  std::cerr << "optimal traj: " << opt_traj << std::endl;
 
   check_approx_traj_eq(current_traj_, opt_traj, 1e-6);
 }

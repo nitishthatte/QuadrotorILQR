@@ -2,14 +2,12 @@
 
 #include <array>
 namespace src {
-namespace {
-constexpr auto g = 9.81;
-}  // namespace
 
 QuadrotorModel::QuadrotorModel(const double mass_kg,
                                const Eigen::Matrix3d &inertia,
                                const double arm_length_m,
-                               const double torque_to_thrust_ratio_m)
+                               const double torque_to_thrust_ratio_m,
+                               const double g_mpss)
     : mass_kg_{mass_kg},
       inertia_{inertia},
       arm_length_m_{arm_length_m},
@@ -17,7 +15,8 @@ QuadrotorModel::QuadrotorModel(const double mass_kg,
       moment_arms_{{0, -arm_length_m_, 0, arm_length_m_},
                    {arm_length_m_, 0.0, -arm_length_m_, 0.0},
                    {-torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_,
-                    -torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_}} {
+                    -torque_to_thrust_ratio_m_, torque_to_thrust_ratio_m_}},
+      g_mpss_{g_mpss} {
   inertia_llt_ = inertia_.llt();
   if (inertia_llt_.info() == Eigen::NumericalIssue ||
       !inertia_.isApprox(inertia_.transpose())) {
@@ -68,7 +67,7 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
   StateTangent xdot;
   xdot.body_velocity = x.body_velocity;
   xdot.body_acceleration.lin() =
-      -g * x.inertial_from_body.rotation().transpose() *
+      -g_mpss_ * x.inertial_from_body.rotation().transpose() *
           Eigen::Vector3d::UnitZ() +
       u.sum() * Eigen::Vector3d::UnitZ() / mass_kg_;
 
@@ -94,7 +93,7 @@ QuadrotorModel::StateTangent QuadrotorModel::continuous_dynamics(
         {-RTez.y(), RTez.x(), 0},
     };
     diffs->J_x(StateBlocks::body_lin_vel, StateBlocks::inertial_from_body_rot) =
-        -g * RTez_hat;
+        -g_mpss_ * RTez_hat;
 
     // fill in dv_ang_dot/dv_ang
     const Eigen::Vector<double, 3> &omega = x.body_velocity.ang();

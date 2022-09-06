@@ -5,7 +5,8 @@ namespace src {
 
 struct QuadrotorModel {
   QuadrotorModel(double mass_kg, const Eigen::Matrix3d &inertia,
-                 double arm_length_m, double torque_to_thrust_ratio_m);
+                 double arm_length_m, double torque_to_thrust_ratio_m,
+                 double g_mpss = 9.81);
 
   struct State {
     manif::SE3d inertial_from_body;
@@ -55,6 +56,7 @@ struct QuadrotorModel {
   double arm_length_m_;
   double torque_to_thrust_ratio_m_;
   Eigen::Matrix<double, 3, 4> moment_arms_;
+  double g_mpss_;
 
   State discrete_dynamics(const State &x, const Control &u, const double dt_s,
                           DynamicsDifferentials *diffs = nullptr) const;
