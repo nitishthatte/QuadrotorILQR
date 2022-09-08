@@ -52,6 +52,7 @@ cc_test(
     size = "small",
     srcs = ["trajectory_test.cc"],
     deps = [
+        ":quadrotor_model",
         ":trajectory",
         "@gtest//:gtest_main",
     ],

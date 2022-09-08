@@ -183,11 +183,8 @@ TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {
     pt.ff_update(0) *= 100;
     pt.ff_update(2) *= 100;
   }
-  std::cerr << "current_traj : " << current_traj_ << std::endl;
   const auto initial_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
-  std::cerr << "initial_traj : " << initial_traj << std::endl;
   const auto opt_traj = ilqr_.solve(initial_traj);
-  std::cerr << "optimal traj: " << opt_traj << std::endl;
 
   check_approx_traj_eq(current_traj_, opt_traj, 1e-6);
 }

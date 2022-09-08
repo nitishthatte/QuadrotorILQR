@@ -113,9 +113,9 @@ git_repository(
 http_archive(
     name = "pybind11",
     build_file = "@pybind11_bazel//:pybind11.BUILD",
-    sha256 = "f1bcc07caa568eb312411dde5308b1e250bd0e1bc020fae855bf9f43209940cc",
-    strip_prefix = "pybind11-2.8.1",
-    urls = ["https://github.com/pybind/pybind11/archive/refs/tags/v2.8.1.tar.gz"],
+    sha256 = "eacf582fa8f696227988d08cfc46121770823839fe9e301a20fbce67e7cd70ec",
+    strip_prefix = "pybind11-2.10.0",
+    urls = ["https://github.com/pybind/pybind11/archive/refs/tags/v2.10.0.tar.gz"],
 )
 
 load("@pybind11_bazel//:python_configure.bzl", "python_configure")
