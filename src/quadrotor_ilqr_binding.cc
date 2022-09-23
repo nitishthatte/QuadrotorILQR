@@ -17,13 +17,13 @@ PYBIND11_PROTO_CASTER(src::proto::QuadrotorTrajectory, "QuadrotorTrajectory",
 PYBIND11_PROTO_CASTER(src::proto::ILQROptions, "ILQROptions",
                       "src.ilqr_options_pb2");
 
-using QuadrotorCostFunction = src::CostFunction<src::QuadrotorModel>;
-
 namespace src {
+using QuadrotorCostFunction = CostFunction<src::QuadrotorModel>;
+
 ILQR<QuadrotorModel> init(
-    const double mass_kg, const Eigen::Matrix3d inertia,
-    const double arm_length_m, const double torque_to_thrust_ratio_m,
-    const double g_mpss, const QuadrotorCostFunction::CostHessianStateState &Q,
+    const double mass_kg, Eigen::Matrix3d inertia, const double arm_length_m,
+    const double torque_to_thrust_ratio_m, const double g_mpss,
+    const QuadrotorCostFunction::CostHessianStateState &Q,
     const QuadrotorCostFunction::CostHessianControlControl &R,
     const proto::QuadrotorTrajectory &desired_traj, const double dt_s,
     const proto::ILQROptions &options) {

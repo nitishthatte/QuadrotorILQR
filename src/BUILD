@@ -147,8 +147,8 @@ cc_test(
 )
 
 pybind_extension(
-    name = "lie_ilqr_binding",
-    srcs = ["lie_ilqr_binding.cc"],
+    name = "quadrotor_ilqr_binding",
+    srcs = ["quadrotor_ilqr_binding.cc"],
     deps = [
         ":ilqr",
         ":ilqr_options_cc_proto",
@@ -160,9 +160,9 @@ pybind_extension(
 )
 
 irepl(
-    name = "lie_ilqr_irepl",
+    name = "quadrotor_ilqr_irepl",
     data = [
-        ":lie_ilqr_binding.so",
+        ":quadrotor_ilqr_binding.so",
     ],
     deps = [
         ":ilqr_options_py_proto",
@@ -172,10 +172,10 @@ irepl(
 )
 
 py_binary(
-    name = "lie_ilqr",
-    srcs = ["lie_ilqr.py"],
+    name = "quadrotor_ilqr",
+    srcs = ["quadrotor_ilqr.py"],
     data = [
-        ":lie_ilqr_binding.so",
+        ":quadrotor_ilqr_binding.so",
     ],
     deps = [
         ":ilqr_options_py_proto",
