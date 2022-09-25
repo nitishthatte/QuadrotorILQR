@@ -68,12 +68,11 @@ def make_state(x_m=0.0, y_m=0.0, z_m=0.0):
 def main():
     dt_s = 0.1
     time_s = np.arange(0, 1.0, dt_s)
-    vel_mps = 10
     desired_traj = traj.QuadrotorTrajectory(
         points=[
             traj.QuadrotorTrajectoryPoint(
                 time_s=t_s,
-                state=make_state(x_m=vel_mps * t_s),
+                state=make_state(x_m=0.0) if t_s < 0.5 else make_state(x_m=10.0),
                 control=traj.Vec4(),
             )
             for t_s in time_s
@@ -98,7 +97,7 @@ def main():
     arm_length_m = 1.0
     torque_to_thrust_ratio_m = 0.0
     g_mpss = 9.81
-    Q = np.eye(12)
+    Q = np.diag(np.concatenate((1000 * np.ones(6), np.zeros(6))))
     R = np.eye(4)
 
     ilqr = QuadrotorILQR(

@@ -57,19 +57,37 @@ struct ILQR {
           backwards_pass(traj);
       const double cost = new_cost;
 
+      std::cerr << "ctrl_update_traj:\n";
+      for (const auto &pt : ctrl_update_traj) {
+        std::cerr << "\tff update: " << pt.ff_update << std::endl;
+        std::cerr << "\tfb gains: " << pt.feedback << std::endl;
+      }
+
       // if expected cost reduction of this line search is small, return
       const auto expected_new_cost =
           cost + detail::calculate_cost_reduction(cost_reduction_terms);
-      if (is_converged(cost, expected_new_cost)) {
+      if (i > 0 && is_converged(cost, expected_new_cost)) {
+        std::cerr << "converged! old cost: " << cost
+                  << ", expected new cost: " << expected_new_cost << std::endl;
         return traj;
       }
 
-      std::tie(traj, new_cost, std::ignore) =
-          line_search(traj, cost, ctrl_update_traj, cost_reduction_terms);
+      if (i == 0) {
+        traj = forward_sim(traj, ctrl_update_traj, 1.0);
+        new_cost = cost_trajectory(traj);
+      } else {
+        std::tie(traj, new_cost, std::ignore) =
+            line_search(traj, cost, ctrl_update_traj, cost_reduction_terms);
+      }
 
-      if (is_converged(cost, new_cost)) {
+      std::cerr << "finished line search! old cost: " << cost
+                << ", new cost: " << new_cost << std::endl;
+
+      if (i > 0 && is_converged(cost, new_cost)) {
+        std::cerr << "converged!" << std::endl;
         return traj;
       }
+      std::cerr << "outer iteration: " << i << std::endl;
     }
     return traj;
   }
@@ -127,6 +145,10 @@ struct ILQR {
       cost_reduction_terms.kTQuuk +=
           (ff_update.transpose() * Q.uu * ff_update)(0);
     }
+
+    std::cerr << "cost reduction terms:\n";
+    std::cerr << "\tQuTk: " << cost_reduction_terms.QuTk << std::endl;
+    std::cerr << "\tkTQuuk : " << cost_reduction_terms.kTQuuk << std::endl;
 
     std::reverse(ctrl_update_traj.begin(), ctrl_update_traj.end());
 
