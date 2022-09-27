@@ -65,14 +65,35 @@ def make_state(x_m=0.0, y_m=0.0, z_m=0.0):
     )
 
 
+def make_square_traj_pt(t_s, vel_mps, horizon_s):
+    quarter_horizon_s = horizon_s / 4.0
+    if t_s < quarter_horizon_s:
+        return make_state(x_m=vel_mps * t_s, y_m=0.0)
+    if t_s < 2.0 * quarter_horizon_s:
+        return make_state(
+            x_m=vel_mps * quarter_horizon_s, y_m=vel_mps * (t_s - quarter_horizon_s)
+        )
+    if t_s < 3.0 * quarter_horizon_s:
+        return make_state(
+            x_m=vel_mps * (3.0 * quarter_horizon_s - t_s),
+            y_m=vel_mps * quarter_horizon_s,
+        )
+    return make_state(
+        x_m=0.0,
+        y_m=vel_mps * (4.0 * quarter_horizon_s - t_s),
+    )
+
+
 def main():
     dt_s = 0.1
-    time_s = np.arange(0, 1.0, dt_s)
+    horizon_s = 4.0
+    time_s = np.arange(0, horizon_s, dt_s)
+    vel_mps = 10
     desired_traj = traj.QuadrotorTrajectory(
         points=[
             traj.QuadrotorTrajectoryPoint(
                 time_s=t_s,
-                state=make_state(x_m=0.0) if t_s < 0.5 else make_state(x_m=10.0),
+                state=make_square_traj_pt(t_s, vel_mps, horizon_s),
                 control=traj.Vec4(),
             )
             for t_s in time_s
@@ -117,6 +138,20 @@ def main():
     desired_traj_array = extract_traj_array(desired_traj)
     opt_traj_array = extract_traj_array(opt_traj)
 
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(
+        desired_traj_array[:, IDX.translation_x_m],
+        desired_traj_array[:, IDX.translation_y_m],
+        label="desired",
+    )
+    ax.plot(
+        opt_traj_array[:, IDX.translation_x_m],
+        opt_traj_array[:, IDX.translation_y_m],
+        label="optimized",
+    )
+    ax.set_xlabel("x translation [m]")
+    ax.set_ylabel("y translation [m]")
+
     fig, ax = plt.subplots(3, 1, sharex=True)
     ax[0].plot(
         desired_traj_array[:, IDX.time_s],
@@ -133,16 +168,16 @@ def main():
 
     ax[1].plot(
         desired_traj_array[:, IDX.time_s],
-        desired_traj_array[:, IDX.vel_translational_x_mps],
+        desired_traj_array[:, IDX.translation_y_m],
         label="desired",
     )
     ax[1].plot(
         opt_traj_array[:, IDX.time_s],
-        opt_traj_array[:, IDX.vel_translational_x_mps],
+        opt_traj_array[:, IDX.translation_y_m],
         label="optimized",
     )
     ax[1].legend()
-    ax[1].set_ylabel("x velocity [mps]")
+    ax[1].set_ylabel("y translation [m]")
 
     ax[2].plot(
         desired_traj_array[:, IDX.time_s],
