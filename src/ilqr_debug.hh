@@ -8,7 +8,6 @@ namespace src {
 
 template <class ModelT>
 struct ILQRIterDebug {
-  int iter;
   Trajectory<ModelT> trajectory;
   double cost;
 };
@@ -16,8 +15,7 @@ struct ILQRIterDebug {
 template <class ModelT>
 bool operator==(const ILQRIterDebug<ModelT> &lhs,
                 const ILQRIterDebug<ModelT> &rhs) {
-  return lhs.iter == rhs.iter && lhs.trajectory == rhs.trajectory &&
-         lhs.cost == rhs.cost;
+  return lhs.trajectory == rhs.trajectory && lhs.cost == rhs.cost;
 }
 
 template <class ModelT>

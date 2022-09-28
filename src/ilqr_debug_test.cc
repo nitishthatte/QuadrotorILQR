@@ -17,7 +17,6 @@ State create_identity_state() {
 
 ILQRIterDebug<QuadrotorModel> create_debug() {
   return ILQRIterDebug<QuadrotorModel>{
-      .iter = 55,
       .trajectory = {TrajectoryPoint<QuadrotorModel>{
           .time_s = 0.0,
           .state = create_identity_state(),
@@ -30,14 +29,6 @@ ILQRIterDebug<QuadrotorModel> create_debug() {
 TEST(ILQRIterDebug, EqualityOperatorReturnsTrueIfDebugSame) {
   const auto debug = create_debug();
   EXPECT_EQ(debug, debug);
-}
-
-TEST(ILQRIterDebug, EqualityOperatorReturnsFalseIfIterDifferent) {
-  const auto debug_0 = create_debug();
-  auto debug_1 = debug_0;
-  debug_1.iter = 10;
-
-  EXPECT_NE(debug_0, debug_1);
 }
 
 TEST(ILQRIterDebug, EqualityOperatorReturnsFalseIfTrajDifferent) {
