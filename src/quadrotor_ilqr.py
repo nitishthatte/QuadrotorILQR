@@ -201,6 +201,21 @@ def main():
     ax[-1].set_xlabel("time [s]")
 
     fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"})
+
+    ax.plot3D(
+        desired_traj_array[:, IDX.translation_x_m],
+        desired_traj_array[:, IDX.translation_y_m],
+        desired_traj_array[:, IDX.translation_z_m],
+        label="desired",
+    )
+    ax.plot3D(
+        opt_traj_array[:, IDX.translation_x_m],
+        opt_traj_array[:, IDX.translation_y_m],
+        opt_traj_array[:, IDX.translation_z_m],
+        label="optimized",
+    )
+    ax.legend()
+
     orig_quad_mesh = mesh.Mesh.from_file("quad_simple_scaled.stl")
     orig_quad_mesh.rotate([1.0, 0.0, 0.0], np.pi / 2.0)
     orig_quad_mesh.rotate([0.0, 0.0, 1.0], np.pi)
@@ -214,9 +229,9 @@ def main():
     ].flatten()
     ax.auto_scale_xyz(scale, scale, scale)
 
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
+    ax.set_xlabel("x [m]")
+    ax.set_ylabel("y [m]")
+    ax.set_zlabel("z [m]")
 
     def anim_init():
         return (collection,)
@@ -249,11 +264,12 @@ def main():
         collection.set_verts(quad_mesh.vectors)
         return (collection,)
 
-    ani = animation.FuncAnimation(
+    anim = animation.FuncAnimation(
         fig, anim_update, frames=opt_traj.points, init_func=anim_init, blit=False
     )
 
     plt.show()
+    anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", "10")
 
 
 if __name__ == "__main__":
