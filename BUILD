@@ -19,3 +19,12 @@ toolchain(
     toolchain = ":py_runtime_pair",
     toolchain_type = "@bazel_tools//tools/python:toolchain_type",
 )
+
+filegroup(
+    name = "quadrotor_stl_model",
+    srcs = [
+        "quad.stl",
+        "quad_simple_scaled.stl",
+    ],
+    visibility = ["//visibility:public"],
+)

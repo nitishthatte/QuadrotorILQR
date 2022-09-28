@@ -176,11 +176,14 @@ py_binary(
     srcs = ["quadrotor_ilqr.py"],
     data = [
         ":quadrotor_ilqr_binding.so",
+        "//:quadrotor_stl_model",
     ],
     deps = [
         ":ilqr_options_py_proto",
         ":trajectory_py_proto",
         requirement("numpy"),
+        requirement("scipy"),
+        requirement("numpy-stl"),
         requirement("matplotlib"),
     ],
 )

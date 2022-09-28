@@ -2,8 +2,13 @@ from src.quadrotor_ilqr_binding import QuadrotorILQR
 import src.trajectory_pb2 as traj
 import src.ilqr_options_pb2 as opts
 import numpy as np
+from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from mpl_toolkits import mplot3d
+from stl import mesh
 from enum import IntEnum
+from copy import deepcopy
 
 
 class IDX(IntEnum):
@@ -118,7 +123,7 @@ def main():
     arm_length_m = 1.0
     torque_to_thrust_ratio_m = 0.0
     g_mpss = 9.81
-    Q = np.diag(np.concatenate((1000 * np.ones(6), np.zeros(6))))
+    Q = np.diag(np.concatenate((100 * np.ones(6), np.zeros(6))))
     R = np.eye(4)
 
     ilqr = QuadrotorILQR(
@@ -194,9 +199,62 @@ def main():
 
     fig.align_ylabels()
     ax[-1].set_xlabel("time [s]")
+
+    fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"})
+    orig_quad_mesh = mesh.Mesh.from_file("quad_simple_scaled.stl")
+    orig_quad_mesh.rotate([1.0, 0.0, 0.0], np.pi / 2.0)
+    orig_quad_mesh.rotate([0.0, 0.0, 1.0], np.pi)
+    collection = ax.add_collection3d(
+        mplot3d.art3d.Poly3DCollection(orig_quad_mesh.vectors)
+    )
+
+    # set equal aspect ratio
+    scale = desired_traj_array[
+        :, IDX.translation_x_m : IDX.translation_z_m + 1
+    ].flatten()
+    ax.auto_scale_xyz(scale, scale, scale)
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+
+    def anim_init():
+        return (collection,)
+
+    def anim_update(traj_pt):
+        quaternion_scalar_first = traj_pt.state.inertial_from_body.rotation.quaternion
+        quaternion_scalar_last = np.array(
+            [
+                quaternion_scalar_first.c1,
+                quaternion_scalar_first.c2,
+                quaternion_scalar_first.c3,
+                quaternion_scalar_first.c0,
+            ]
+        )
+        rot = Rotation.from_quat(quaternion_scalar_last)
+        translation = np.array(
+            [
+                traj_pt.state.inertial_from_body.translation.c0,
+                traj_pt.state.inertial_from_body.translation.c1,
+                traj_pt.state.inertial_from_body.translation.c2,
+            ]
+        )
+
+        transform = np.eye(4)
+        transform[0:3, 0:3] = rot.as_matrix()
+        transform[0:3, 3] = translation
+
+        quad_mesh = deepcopy(orig_quad_mesh)
+        quad_mesh.transform(transform)
+        collection.set_verts(quad_mesh.vectors)
+        return (collection,)
+
+    ani = animation.FuncAnimation(
+        fig, anim_update, frames=opt_traj.points, init_func=anim_init, blit=False
+    )
+
     plt.show()
 
 
 if __name__ == "__main__":
     main()
-data = []

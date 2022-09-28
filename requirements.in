@@ -1,4 +1,7 @@
 ipython
 numpy
+scipy
 setuptools
 matplotlib
+numpy-stl
+ipdb
