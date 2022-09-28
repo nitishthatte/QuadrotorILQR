@@ -64,6 +64,7 @@ struct ILQR {
         return traj;
       }
 
+      // always forward simulate and cost the initial control sequence
       if (i == 0) {
         traj = forward_sim(traj, ctrl_update_traj, 1.0);
         new_cost = cost_trajectory(traj);

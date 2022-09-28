@@ -10,7 +10,7 @@ using State = QuadrotorModel::State;
 constexpr auto CONFIG_DIM = QuadrotorModel::CONFIG_DIM;
 using Control = QuadrotorModel::Control;
 
-TEST(LieTrajectory, RoundTripTest) {
+TEST(QuadrotorTrajectory, RoundTripTest) {
   const State x0{.inertial_from_body =
                      manif::SE3Tangentd{Eigen::Vector<double, CONFIG_DIM>{
                                             1.0, 2.0, 3.0, 4.0, 5.0, 6.0}}

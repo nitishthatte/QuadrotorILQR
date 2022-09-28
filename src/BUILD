@@ -146,6 +146,25 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "ilqr_debug",
+    hdrs = ["ilqr_debug.hh"],
+    deps = [
+        ":trajectory",
+    ],
+)
+
+cc_test(
+    name = "ilqr_debug_test",
+    size = "small",
+    srcs = ["ilqr_debug_test.cc"],
+    deps = [
+        ":ilqr_debug",
+        ":quadrotor_model",
+        "@gtest//:gtest_main",
+    ],
+)
+
 pybind_extension(
     name = "quadrotor_ilqr_binding",
     srcs = ["quadrotor_ilqr_binding.cc"],
