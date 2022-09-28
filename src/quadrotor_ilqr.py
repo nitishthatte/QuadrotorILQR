@@ -73,91 +73,31 @@ def make_state(x_m=0.0, y_m=0.0, z_m=0.0):
 def make_square_traj_pt(t_s, vel_mps, horizon_s):
     quarter_horizon_s = horizon_s / 4.0
     if t_s < quarter_horizon_s:
-        return make_state(x_m=vel_mps * t_s, y_m=0.0)
+        return make_state(x_m=vel_mps * t_s, y_m=0.0, z_m=0.0)
     if t_s < 2.0 * quarter_horizon_s:
         return make_state(
-            x_m=vel_mps * quarter_horizon_s, y_m=vel_mps * (t_s - quarter_horizon_s)
+            x_m=vel_mps * quarter_horizon_s,
+            y_m=vel_mps * (t_s - quarter_horizon_s),
+            z_m=10.0 / 3.0,
         )
     if t_s < 3.0 * quarter_horizon_s:
         return make_state(
             x_m=vel_mps * (3.0 * quarter_horizon_s - t_s),
             y_m=vel_mps * quarter_horizon_s,
+            z_m=20.0 / 3.0,
         )
     return make_state(
         x_m=0.0,
         y_m=vel_mps * (4.0 * quarter_horizon_s - t_s),
+        z_m=10.0,
     )
 
 
-def main():
-    dt_s = 0.1
-    horizon_s = 4.0
-    time_s = np.arange(0, horizon_s, dt_s)
-    vel_mps = 10
-    desired_traj = traj.QuadrotorTrajectory(
-        points=[
-            traj.QuadrotorTrajectoryPoint(
-                time_s=t_s,
-                state=make_square_traj_pt(t_s, vel_mps, horizon_s),
-                control=traj.Vec4(),
-            )
-            for t_s in time_s
-        ]
-    )
-
-    options = opts.ILQROptions(
-        line_search_params=opts.LineSearchParams(
-            step_update=0.5,
-            desired_reduction_frac=0.5,
-            max_iters=100,
-        ),
-        convergence_criteria=opts.ConvergenceCriteria(
-            rtol=1e-12,
-            atol=1e-12,
-            max_iters=100,
-        ),
-    )
-
-    mass_kg = 1.0
-    inertia = np.eye(3)
-    arm_length_m = 1.0
-    torque_to_thrust_ratio_m = 0.0
-    g_mpss = 9.81
-    Q = np.diag(np.concatenate((100 * np.ones(6), np.zeros(6))))
-    R = np.eye(4)
-
-    ilqr = QuadrotorILQR(
-        mass_kg,
-        inertia,
-        arm_length_m,
-        torque_to_thrust_ratio_m,
-        g_mpss,
-        Q,
-        R,
-        desired_traj,
-        dt_s,
-        options,
-    )
-    opt_traj = ilqr.solve(desired_traj)
-
+def plot_temporal_trajectories(desired_traj, opt_traj):
     desired_traj_array = extract_traj_array(desired_traj)
     opt_traj_array = extract_traj_array(opt_traj)
 
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(
-        desired_traj_array[:, IDX.translation_x_m],
-        desired_traj_array[:, IDX.translation_y_m],
-        label="desired",
-    )
-    ax.plot(
-        opt_traj_array[:, IDX.translation_x_m],
-        opt_traj_array[:, IDX.translation_y_m],
-        label="optimized",
-    )
-    ax.set_xlabel("x translation [m]")
-    ax.set_ylabel("y translation [m]")
-
-    fig, ax = plt.subplots(3, 1, sharex=True)
+    fig, ax = plt.subplots(4, 1, sharex=True)
     ax[0].plot(
         desired_traj_array[:, IDX.time_s],
         desired_traj_array[:, IDX.translation_x_m],
@@ -186,19 +126,37 @@ def main():
 
     ax[2].plot(
         desired_traj_array[:, IDX.time_s],
-        desired_traj_array[:, IDX.control_0 : IDX.control_3 + 1],
+        desired_traj_array[:, IDX.translation_z_m],
         label="desired",
     )
     ax[2].plot(
         opt_traj_array[:, IDX.time_s],
-        opt_traj_array[:, IDX.control_0 : IDX.control_3 + 1],
+        opt_traj_array[:, IDX.translation_z_m],
         label="optimized",
     )
     ax[2].legend()
-    ax[2].set_ylabel("control")
+    ax[2].set_ylabel("z translation [m]")
+
+    ax[3].plot(
+        desired_traj_array[:, IDX.time_s],
+        desired_traj_array[:, IDX.control_0 : IDX.control_3 + 1],
+        label="desired",
+    )
+    ax[3].plot(
+        opt_traj_array[:, IDX.time_s],
+        opt_traj_array[:, IDX.control_0 : IDX.control_3 + 1],
+        label="optimized",
+    )
+    ax[3].legend()
+    ax[3].set_ylabel("control")
 
     fig.align_ylabels()
     ax[-1].set_xlabel("time [s]")
+
+
+def animate_trajectories(desired_traj, opt_traj):
+    desired_traj_array = extract_traj_array(desired_traj)
+    opt_traj_array = extract_traj_array(opt_traj)
 
     fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"})
 
@@ -268,8 +226,65 @@ def main():
         fig, anim_update, frames=opt_traj.points, init_func=anim_init, blit=False
     )
 
+    return anim
+
+
+def main():
+    dt_s = 0.1
+    horizon_s = 4.0
+    time_s = np.arange(0, horizon_s, dt_s)
+    vel_mps = 10
+    desired_traj = traj.QuadrotorTrajectory(
+        points=[
+            traj.QuadrotorTrajectoryPoint(
+                time_s=t_s,
+                state=make_square_traj_pt(t_s, vel_mps, horizon_s),
+                control=traj.Vec4(),
+            )
+            for t_s in time_s
+        ]
+    )
+
+    options = opts.ILQROptions(
+        line_search_params=opts.LineSearchParams(
+            step_update=0.5,
+            desired_reduction_frac=0.5,
+            max_iters=100,
+        ),
+        convergence_criteria=opts.ConvergenceCriteria(
+            rtol=1e-12,
+            atol=1e-12,
+            max_iters=100,
+        ),
+    )
+
+    mass_kg = 1.0
+    inertia = np.eye(3)
+    arm_length_m = 1.0
+    torque_to_thrust_ratio_m = 0.0
+    g_mpss = 9.81
+    Q = np.diag(np.concatenate((100 * np.ones(6), 1 * np.ones(6))))
+    R = np.eye(4)
+
+    ilqr = QuadrotorILQR(
+        mass_kg,
+        inertia,
+        arm_length_m,
+        torque_to_thrust_ratio_m,
+        g_mpss,
+        Q,
+        R,
+        desired_traj,
+        dt_s,
+        options,
+    )
+    opt_traj = ilqr.solve(desired_traj)
+
+    plot_temporal_trajectories(desired_traj, opt_traj)
+    anim = animate_trajectories(desired_traj, opt_traj)
+
     plt.show()
-    anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", "10")
+    # anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", "10")
 
 
 if __name__ == "__main__":
