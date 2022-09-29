@@ -17,4 +17,5 @@ message ConvergenceCriteria {
 message ILQROptions {
   LineSearchParams line_search_params = 1;
   ConvergenceCriteria convergence_criteria = 2;
+  bool populate_debug = 3;
 }

@@ -16,6 +16,7 @@ bool operator==(const ConvergenceCriteria &lhs,
 
 bool operator==(const ILQROptions &lhs, const ILQROptions &rhs) {
   return lhs.line_search_params == rhs.line_search_params &&
-         lhs.convergence_criteria == rhs.convergence_criteria;
+         lhs.convergence_criteria == rhs.convergence_criteria &&
+         lhs.populate_debug && rhs.populate_debug;
 }
 }  // namespace src

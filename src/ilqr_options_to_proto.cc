@@ -36,12 +36,14 @@ proto::ILQROptions to_proto(const ILQROptions &opts) {
   proto::ILQROptions proto;
   *proto.mutable_line_search_params() = to_proto(opts.line_search_params);
   *proto.mutable_convergence_criteria() = to_proto(opts.convergence_criteria);
+  proto.set_populate_debug(opts.populate_debug);
   return proto;
 }
 
 ILQROptions from_proto(const proto::ILQROptions &proto) {
   return {.line_search_params = from_proto(proto.line_search_params()),
-          .convergence_criteria = from_proto(proto.convergence_criteria())};
+          .convergence_criteria = from_proto(proto.convergence_criteria()),
+          .populate_debug = proto.populate_debug()};
 }
 
 }  // namespace src

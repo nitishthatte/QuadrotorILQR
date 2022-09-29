@@ -18,6 +18,7 @@ bool operator==(const ConvergenceCriteria &lhs, const ConvergenceCriteria &rhs);
 struct ILQROptions {
   LineSearchParams line_search_params;
   ConvergenceCriteria convergence_criteria;
+  bool populate_debug;
 };
 bool operator==(const ILQROptions &lhs, const ILQROptions &rhs);
 }  // namespace src
