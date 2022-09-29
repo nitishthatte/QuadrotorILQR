@@ -165,6 +165,34 @@ cc_test(
     ],
 )
 
+proto_lib_collection(
+    name = "ilqr_debug_proto",
+    srcs = ["ilqr_debug.proto"],
+    deps = [":trajectory_proto"],
+)
+
+cc_library(
+    name = "ilqr_debug_to_proto",
+    srcs = ["ilqr_debug_to_proto.cc"],
+    hdrs = ["ilqr_debug_to_proto.hh"],
+    deps = [
+        ":ilqr_debug",
+        ":ilqr_debug_cc_proto",
+        ":quadrotor_model",
+        ":trajectory_to_proto",
+    ],
+)
+
+cc_test(
+    name = "ilqr_debug_to_proto_test",
+    size = "small",
+    srcs = ["ilqr_debug_to_proto_test.cc"],
+    deps = [
+        ":ilqr_debug_to_proto",
+        "@gtest//:gtest_main",
+    ],
+)
+
 pybind_extension(
     name = "quadrotor_ilqr_binding",
     srcs = ["quadrotor_ilqr_binding.cc"],

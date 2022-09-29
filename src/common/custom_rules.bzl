@@ -37,10 +37,11 @@ def proto_lib_collection(name, srcs, deps = [], visibility = None):
     )
 
     py_proto_name = name[0:-6] + "_py_proto"
+    py_deps = [dep[0:-6] + "_py_proto" for dep in deps]
     py_proto_library(
         name = py_proto_name,
         srcs = srcs,
-        deps = deps + ["@com_google_protobuf//:protobuf_python"],
+        deps = py_deps + ["@com_google_protobuf//:protobuf_python"],
         visibility = visibility,
     )
 
