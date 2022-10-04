@@ -4,6 +4,7 @@
 #include <string>
 
 #include "src/cost.hh"
+#include "src/ilqr_debug.hh"
 #include "src/ilqr_options.hh"
 #include "src/trajectory.hh"
 
@@ -49,9 +50,11 @@ struct ILQR {
 
   using ControlUpdateTrajectory = std::vector<ControlUpdate>;
 
-  Trajectory<ModelT> solve(const Trajectory<ModelT> &initial_traj) const {
+  std::pair<Trajectory<ModelT>, ILQRDebug<ModelT>> solve(
+      const Trajectory<ModelT> &initial_traj) const {
     auto traj = initial_traj;
     auto new_cost = cost_trajectory(traj);
+    ILQRDebug<ModelT> debug;
     for (int i = 0; i < options_.convergence_criteria.max_iters; ++i) {
       const auto [ctrl_update_traj, cost_reduction_terms] =
           backwards_pass(traj);
@@ -61,7 +64,7 @@ struct ILQR {
       const auto expected_new_cost =
           cost + detail::calculate_cost_reduction(cost_reduction_terms);
       if (i > 0 && is_converged(cost, expected_new_cost)) {
-        return traj;
+        return std::make_pair(traj, debug);
       }
 
       // always forward simulate and cost the initial control sequence
@@ -72,12 +75,15 @@ struct ILQR {
         std::tie(traj, new_cost, std::ignore) =
             line_search(traj, cost, ctrl_update_traj, cost_reduction_terms);
       }
+      if (options_.populate_debug) {
+        debug.emplace_back(ILQRIterDebug<ModelT>{traj, new_cost});
+      }
 
       if (i > 0 && is_converged(cost, new_cost)) {
-        return traj;
+        return std::make_pair(traj, debug);
       }
     }
-    return traj;
+    return std::make_pair(traj, debug);
   }
 
   double cost_trajectory(const Trajectory<ModelT> &traj) const {

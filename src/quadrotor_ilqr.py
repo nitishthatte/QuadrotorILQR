@@ -93,60 +93,38 @@ def make_square_traj_pt(t_s, vel_mps, horizon_s):
     )
 
 
-def plot_temporal_trajectories(desired_traj, opt_traj):
-    desired_traj_array = extract_traj_array(desired_traj)
-    opt_traj_array = extract_traj_array(opt_traj)
+def plot_temporal_trajectories(traj_dict):
+    fig, ax = plt.subplots(4, 1, figsize=(9, 12), sharex=True)
 
-    fig, ax = plt.subplots(4, 1, sharex=True)
-    ax[0].plot(
-        desired_traj_array[:, IDX.time_s],
-        desired_traj_array[:, IDX.translation_x_m],
-        label="desired",
-    )
-    ax[0].plot(
-        opt_traj_array[:, IDX.time_s],
-        opt_traj_array[:, IDX.translation_x_m],
-        label="optimized",
-    )
+    for label, traj in traj_dict.items():
+        traj_array = extract_traj_array(traj)
+
+        ax[0].plot(
+            traj_array[:, IDX.time_s],
+            traj_array[:, IDX.translation_x_m],
+            label=label,
+        )
+        ax[1].plot(
+            traj_array[:, IDX.time_s],
+            traj_array[:, IDX.translation_y_m],
+            label=label,
+        )
+        ax[2].plot(
+            traj_array[:, IDX.time_s],
+            traj_array[:, IDX.translation_z_m],
+            label=label,
+        )
+        ax[3].plot(
+            traj_array[:, IDX.time_s],
+            traj_array[:, IDX.control_0 : IDX.control_3 + 1],
+            label=label,
+        )
     ax[0].legend()
     ax[0].set_ylabel("x translation [m]")
-
-    ax[1].plot(
-        desired_traj_array[:, IDX.time_s],
-        desired_traj_array[:, IDX.translation_y_m],
-        label="desired",
-    )
-    ax[1].plot(
-        opt_traj_array[:, IDX.time_s],
-        opt_traj_array[:, IDX.translation_y_m],
-        label="optimized",
-    )
     ax[1].legend()
     ax[1].set_ylabel("y translation [m]")
-
-    ax[2].plot(
-        desired_traj_array[:, IDX.time_s],
-        desired_traj_array[:, IDX.translation_z_m],
-        label="desired",
-    )
-    ax[2].plot(
-        opt_traj_array[:, IDX.time_s],
-        opt_traj_array[:, IDX.translation_z_m],
-        label="optimized",
-    )
     ax[2].legend()
     ax[2].set_ylabel("z translation [m]")
-
-    ax[3].plot(
-        desired_traj_array[:, IDX.time_s],
-        desired_traj_array[:, IDX.control_0 : IDX.control_3 + 1],
-        label="desired",
-    )
-    ax[3].plot(
-        opt_traj_array[:, IDX.time_s],
-        opt_traj_array[:, IDX.control_0 : IDX.control_3 + 1],
-        label="optimized",
-    )
     ax[3].legend()
     ax[3].set_ylabel("control")
 
@@ -154,25 +132,23 @@ def plot_temporal_trajectories(desired_traj, opt_traj):
     ax[-1].set_xlabel("time [s]")
 
 
-def animate_trajectories(desired_traj, opt_traj):
-    desired_traj_array = extract_traj_array(desired_traj)
-    opt_traj_array = extract_traj_array(opt_traj)
+def animate_trajectories(traj_dict, plot_3d_key):
+    fig, ax = plt.subplots(1, 1, figsize=(9, 9), subplot_kw={"projection": "3d"})
+    ax.set_xlabel("x [m]")
+    ax.set_ylabel("y [m]")
+    ax.set_zlabel("z [m]")
+    for label, traj in traj_dict.items():
+        traj_array = extract_traj_array(traj)
+        ax.plot3D(
+            traj_array[:, IDX.translation_x_m],
+            traj_array[:, IDX.translation_y_m],
+            traj_array[:, IDX.translation_z_m],
+            label=label,
+        )
 
-    fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"})
-
-    ax.plot3D(
-        desired_traj_array[:, IDX.translation_x_m],
-        desired_traj_array[:, IDX.translation_y_m],
-        desired_traj_array[:, IDX.translation_z_m],
-        label="desired",
-    )
-    ax.plot3D(
-        opt_traj_array[:, IDX.translation_x_m],
-        opt_traj_array[:, IDX.translation_y_m],
-        opt_traj_array[:, IDX.translation_z_m],
-        label="optimized",
-    )
-    ax.legend()
+        # set equal aspect ratio
+        scale = traj_array[:, IDX.translation_x_m : IDX.translation_z_m + 1].flatten()
+        ax.auto_scale_xyz(scale, scale, scale)
 
     orig_quad_mesh = mesh.Mesh.from_file("quad_simple_scaled.stl")
     orig_quad_mesh.rotate([1.0, 0.0, 0.0], np.pi / 2.0)
@@ -180,16 +156,6 @@ def animate_trajectories(desired_traj, opt_traj):
     collection = ax.add_collection3d(
         mplot3d.art3d.Poly3DCollection(orig_quad_mesh.vectors)
     )
-
-    # set equal aspect ratio
-    scale = desired_traj_array[
-        :, IDX.translation_x_m : IDX.translation_z_m + 1
-    ].flatten()
-    ax.auto_scale_xyz(scale, scale, scale)
-
-    ax.set_xlabel("x [m]")
-    ax.set_ylabel("y [m]")
-    ax.set_zlabel("z [m]")
 
     def anim_init():
         return (collection,)
@@ -222,8 +188,15 @@ def animate_trajectories(desired_traj, opt_traj):
         collection.set_verts(quad_mesh.vectors)
         return (collection,)
 
+    ax.legend(bbox_to_anchor=(1.5, 0.5), loc="center right", ncol=2)
+    fig.tight_layout()
+
     anim = animation.FuncAnimation(
-        fig, anim_update, frames=opt_traj.points, init_func=anim_init, blit=False
+        fig,
+        anim_update,
+        frames=traj_dict[plot_3d_key].points,
+        init_func=anim_init,
+        blit=False,
     )
 
     return anim
@@ -256,6 +229,7 @@ def main():
             atol=1e-12,
             max_iters=100,
         ),
+        populate_debug=True,
     )
 
     mass_kg = 1.0
@@ -278,11 +252,14 @@ def main():
         dt_s,
         options,
     )
-    opt_traj = ilqr.solve(desired_traj)
+    opt_traj, debug = ilqr.solve(desired_traj)
 
-    plot_temporal_trajectories(desired_traj, opt_traj)
-    anim = animate_trajectories(desired_traj, opt_traj)
+    traj_dict = {"desired": desired_traj, "optimized": opt_traj}
+    for i, iter_debug in enumerate(debug.iter_debugs):
+        traj_dict[f"iter {i}"] = iter_debug.trajectory
 
+    plot_temporal_trajectories(traj_dict)
+    anim = animate_trajectories(traj_dict, plot_3d_key="optimized")
     plt.show()
     # anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", "10")
 

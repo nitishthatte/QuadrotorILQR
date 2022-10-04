@@ -184,7 +184,7 @@ TEST_F(ILQRFixture, SolveFindsOptimalTrajectory) {
     pt.ff_update(2) *= 100;
   }
   const auto initial_traj = ilqr_.forward_sim(current_traj_, ctrl_update_traj_);
-  const auto opt_traj = ilqr_.solve(initial_traj);
+  const auto [opt_traj, debug] = ilqr_.solve(initial_traj);
 
   check_approx_traj_eq(current_traj_, opt_traj, 1e-6);
 }

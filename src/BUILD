@@ -130,6 +130,7 @@ cc_library(
     hdrs = ["ilqr.hh"],
     deps = [
         ":cost",
+        ":ilqr_debug",
         ":ilqr_options",
         ":trajectory",
     ],
@@ -198,6 +199,8 @@ pybind_extension(
     srcs = ["quadrotor_ilqr_binding.cc"],
     deps = [
         ":ilqr",
+        ":ilqr_debug_cc_proto",
+        ":ilqr_debug_to_proto",
         ":ilqr_options_cc_proto",
         ":ilqr_options_to_proto",
         ":trajectory_cc_proto",
@@ -226,6 +229,7 @@ py_binary(
         "//:quadrotor_stl_model",
     ],
     deps = [
+        ":ilqr_debug_py_proto",
         ":ilqr_options_py_proto",
         ":trajectory_py_proto",
         requirement("numpy"),
