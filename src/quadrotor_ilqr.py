@@ -132,6 +132,13 @@ def plot_temporal_trajectories(traj_dict):
     ax[-1].set_xlabel("time [s]")
 
 
+def plot_costs(costs):
+    fig, ax = plt.subplots(1, 1, figsize=(9, 9))
+    ax.semilogy(costs)
+    ax.set_xlabel("cost")
+    ax.set_ylabel("iteration")
+
+
 def animate_trajectories(traj_dict, plot_3d_key):
     fig, ax = plt.subplots(1, 1, figsize=(9, 9), subplot_kw={"projection": "3d"})
     ax.set_xlabel("x [m]")
@@ -257,8 +264,10 @@ def main():
     traj_dict = {"desired": desired_traj, "optimized": opt_traj}
     for i, iter_debug in enumerate(debug.iter_debugs):
         traj_dict[f"iter {i}"] = iter_debug.trajectory
+    costs = [d.cost for d in debug.iter_debugs]
 
     plot_temporal_trajectories(traj_dict)
+    plot_costs(costs)
     anim = animate_trajectories(traj_dict, plot_3d_key="optimized")
     plt.show()
     # anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", "10")
