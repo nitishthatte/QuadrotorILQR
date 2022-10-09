@@ -270,7 +270,8 @@ def main():
     plot_costs(costs)
     anim = animate_trajectories(traj_dict, plot_3d_key="optimized")
     plt.show()
-    # anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", "10")
+
+    # anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", f"{1/dt_s}")
 
 
 if __name__ == "__main__":
