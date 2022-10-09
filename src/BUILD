@@ -205,7 +205,7 @@ pybind_extension(
         ":ilqr_options_to_proto",
         ":trajectory_cc_proto",
         ":trajectory_to_proto",
-        "//src/common:pybind_cast",
+        "@pybind11_protobuf//pybind11_protobuf:native_proto_caster",
     ],
 )
 
@@ -236,5 +236,6 @@ py_binary(
         requirement("scipy"),
         requirement("numpy-stl"),
         requirement("matplotlib"),
+        "@com_google_protobuf//:protobuf_python",
     ],
 )

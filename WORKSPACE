@@ -149,10 +149,29 @@ http_archive(
     ],
 )
 
+git_repository(
+    name = "pybind11_protobuf",
+    commit = "158cc03371a5bee6e771715167a1b02776b993a7",
+    remote = "https://github.com/pybind/pybind11_protobuf",
+)
+
+## ABSL ##
+http_archive(
+    name = "com_google_absl",
+    strip_prefix = "abseil-cpp-20220623.1",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20220623.1.tar.gz"],
+)
+
 ## Wise Enum ##
 new_git_repository(
     name = "wise_enum",
     build_file = "@//:third_party/wise_enum.BUILD",
     commit = "34ac79f7ea2658a148359ce82508cc9301e31dd3",
     remote = "https://github.com/quicknir/wise_enum",
+)
+
+# Needed by Protobuf
+bind(
+    name = "python_headers",
+    actual = "@local_config_python//:python_headers",
 )

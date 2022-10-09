@@ -1,8 +1,8 @@
 #include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
 
-#include "common/pybind_cast.hh"
 #include "pybind11/eigen.h"
+#include "pybind11_protobuf/native_proto_caster.h"
 #include "quadrotor_model.hh"
 #include "src/ilqr.hh"
 #include "src/ilqr_debug.pb.h"
@@ -13,13 +13,6 @@
 #include "src/trajectory_to_proto.hh"
 
 namespace py = pybind11;
-
-PYBIND11_PROTO_CASTER(src::proto::QuadrotorTrajectory, "QuadrotorTrajectory",
-                      "src.trajectory_pb2");
-PYBIND11_PROTO_CASTER(src::proto::ILQROptions, "ILQROptions",
-                      "src.ilqr_options_pb2");
-PYBIND11_PROTO_CASTER(src::proto::QuadrotorILQRDebug, "QuadrotorILQRDebug",
-                      "src.ilqr_debug_pb2");
 
 namespace src {
 using QuadrotorCostFunction = CostFunction<src::QuadrotorModel>;
@@ -49,6 +42,8 @@ std::pair<proto::QuadrotorTrajectory, proto::QuadrotorILQRDebug> solve(
 }  // namespace src
 
 PYBIND11_MODULE(quadrotor_ilqr_binding, m) {
+  pybind11_protobuf::ImportNativeProtoCasters();
+
   py::class_<src::ILQR<src::QuadrotorModel>>(m, "QuadrotorILQR")
       .def(py::init(&src::init))
       .def("solve", &src::solve);
