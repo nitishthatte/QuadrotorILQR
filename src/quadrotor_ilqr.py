@@ -211,7 +211,7 @@ def animate_trajectories(traj_dict, plot_3d_key):
     return anim
 
 
-def main(show_plots: bool = True, save_anim_path: str = None):
+def main(show_plots: bool = True, plot_iters: bool = False, save_anim_path: str = None):
     dt_s = 0.1
     horizon_s = 4.0
     time_s = np.arange(0, horizon_s, dt_s)
@@ -264,8 +264,9 @@ def main(show_plots: bool = True, save_anim_path: str = None):
     opt_traj, debug = ilqr.solve(desired_traj)
 
     traj_dict = {"desired": desired_traj, "optimized": opt_traj}
-    for i, iter_debug in enumerate(debug.iter_debugs):
-        traj_dict[f"iter {i}"] = iter_debug.trajectory
+    if plot_iters:
+        for i, iter_debug in enumerate(debug.iter_debugs):
+            traj_dict[f"iter {i}"] = iter_debug.trajectory
     costs = [d.cost for d in debug.iter_debugs]
 
     if show_plots:
@@ -290,6 +291,11 @@ def parse_args(args):
         help="Show the plots after generating the trajectory",
     )
     parser.add_argument(
+        "--plot_iters",
+        action="store_true",
+        help="Plot the intermediate trajectories generated during optimzation.",
+    )
+    parser.add_argument(
         "--save_anim_path",
         type=str,
         default=None,
@@ -303,4 +309,4 @@ def parse_args(args):
 
 if __name__ == "__main__":
     args = parse_args(sys.argv[1:])
-    main(args.show_plots, args.save_anim_path)
+    main(args.show_plots, args.plot_iters, args.save_anim_path)
