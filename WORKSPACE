@@ -79,9 +79,9 @@ filegroup(
         "make install",
         "ln -s bazel_install/bin/python3 python_bin",
     ],
-    sha256 = "06828c04a573c073a4e51c4292a27c1be4ae26621c3edc7cf9318418ce3b6d27",
-    strip_prefix = "Python-3.9.9",
-    urls = ["https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz"],
+    #sha256 = "06828c04a573c073a4e51c4292a27c1be4ae26621c3edc7cf9318418ce3b6d27",
+    strip_prefix = "Python-3.10.7",
+    urls = ["https://www.python.org/ftp/python/3.10.7/Python-3.10.7.tar.xz"],
 )
 
 register_toolchains("//:py_3_toolchain")

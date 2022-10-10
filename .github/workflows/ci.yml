@@ -21,14 +21,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ env.cache-name }}-development
 
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
       # Checks-out your repository under $GITHUB_WORKSPACE, which is the CWD for
       # the rest of the steps
-      - uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      # build
-      - name: Build the code
+      - name: Build code
         run: bazel build //...
 
-      # test
       - name: Run all tests
         run: bazel test //...

@@ -1,2 +1,2 @@
-build --cxxopt -std=c++2a
+build  --repo_env=CC=clang --cxxopt -std=c++2a
 test --test_output=errors
