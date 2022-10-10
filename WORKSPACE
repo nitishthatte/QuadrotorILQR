@@ -143,6 +143,7 @@ rules_proto_toolchains()
 
 http_archive(
     name = "com_google_protobuf",
+    sha256 = "80631d5a18d51daa3a1336e340001ad4937e926762f21144c62d26fe2a8d71fe",
     strip_prefix = "protobuf-3.19.1",
     urls = [
         "https://github.com/protocolbuffers/protobuf/releases/download/v3.19.1/protobuf-all-3.19.1.tar.gz",
@@ -153,11 +154,13 @@ git_repository(
     name = "pybind11_protobuf",
     commit = "158cc03371a5bee6e771715167a1b02776b993a7",
     remote = "https://github.com/pybind/pybind11_protobuf",
+    shallow_since = "1661450640 -0700",
 )
 
 ## ABSL ##
 http_archive(
     name = "com_google_absl",
+    sha256 = "91ac87d30cc6d79f9ab974c51874a704de9c2647c40f6932597329a282217ba8",
     strip_prefix = "abseil-cpp-20220623.1",
     urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20220623.1.tar.gz"],
 )
