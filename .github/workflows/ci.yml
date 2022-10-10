@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   test:
     # virtual environments: https://github.com/actions/virtual-environments
-    runs-on: ubuntu-20.04
+    runs-on: macos-12
 
     steps:
       #  Caches and restores the bazelisk download directory, the bazel build directory.
