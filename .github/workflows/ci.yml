@@ -19,7 +19,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ env.cache-name }}-development
 
-    steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, which is the CWD for
       # the rest of the steps
       - uses: actions/checkout@v2
