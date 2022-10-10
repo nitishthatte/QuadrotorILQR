@@ -1,0 +1,21 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    # virtual environments: https://github.com/actions/virtual-environments
+    runs-on: ubuntu-20.04
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, which is the CWD for
+      # the rest of the steps
+      - uses: actions/checkout@v2
+
+      # build
+      - name: Build the code
+        run: bazel build //...
+
+      # test
+      - name: Run all tests
+        run: bazel test //...
