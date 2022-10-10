@@ -21,6 +21,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ env.cache-name }}-development
 
+      - name: See Clang Version
+        run: clang --version
+
       - name: Setup python
         uses: actions/setup-python@v4
         with:
@@ -32,7 +35,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build code
-        run: bazel build //...
+        run: bazel build --keep_going //...
 
       - name: Run all tests
         run: bazel test //...
