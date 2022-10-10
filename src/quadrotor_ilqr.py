@@ -1,3 +1,4 @@
+import sys
 from src.quadrotor_ilqr_binding import QuadrotorILQR
 import src.trajectory_pb2 as traj
 import src.ilqr_options_pb2 as opts
@@ -6,6 +7,7 @@ from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits import mplot3d
+import argparse
 from stl import mesh
 from enum import IntEnum
 from copy import deepcopy
@@ -209,7 +211,7 @@ def animate_trajectories(traj_dict, plot_3d_key):
     return anim
 
 
-def main():
+def main(show_plots: bool = True, save_anim_path: str = None):
     dt_s = 0.1
     horizon_s = 4.0
     time_s = np.arange(0, horizon_s, dt_s)
@@ -266,13 +268,39 @@ def main():
         traj_dict[f"iter {i}"] = iter_debug.trajectory
     costs = [d.cost for d in debug.iter_debugs]
 
-    plot_temporal_trajectories(traj_dict)
-    plot_costs(costs)
     anim = animate_trajectories(traj_dict, plot_3d_key="optimized")
-    plt.show()
+    if show_plots:
+        plot_temporal_trajectories(traj_dict)
+        plot_costs(costs)
+        plt.show()
 
-    # anim.save("/Users/nitishthatte/Desktop/quadrotor.mp4", "ffmpeg", f"{1/dt_s}")
+        if save_anim_path:
+            print(f"Saving animation to {save_anim_path}...", end=" ", flush=True)
+            anim.save(save_anim_path, "ffmpeg", f"{1/dt_s}")
+            print("Done!")
+
+
+def parse_args(args):
+    parser = argparse.ArgumentParser(
+        description="Run the Quadrotor iLQR Trajectory Generator."
+    )
+    parser.add_argument(
+        "--show_plots",
+        action="store_true",
+        help="Show the plots after generating the trajectory",
+    )
+    parser.add_argument(
+        "--save_anim_path",
+        type=str,
+        default=None,
+        help="The path to save the result animation. --show_plots must be specified"
+        "for this option to have an affect. If the path is not provided, "
+        "the animation will not be saved.",
+    )
+
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args(sys.argv[1:])
+    main(args.show_plots, args.save_anim_path)
