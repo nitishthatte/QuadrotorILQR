@@ -239,3 +239,11 @@ py_binary(
         "@com_google_protobuf//:protobuf_python",
     ],
 )
+
+py_test(
+    name = "quadrotor_ilqr_test",
+    srcs = ["quadrotor_ilqr_test.py"],
+    deps = [
+        ":quadrotor_ilqr",
+    ],
+)

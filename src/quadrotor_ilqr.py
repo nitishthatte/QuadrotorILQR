@@ -268,10 +268,10 @@ def main(show_plots: bool = True, save_anim_path: str = None):
         traj_dict[f"iter {i}"] = iter_debug.trajectory
     costs = [d.cost for d in debug.iter_debugs]
 
-    anim = animate_trajectories(traj_dict, plot_3d_key="optimized")
     if show_plots:
         plot_temporal_trajectories(traj_dict)
         plot_costs(costs)
+        anim = animate_trajectories(traj_dict, plot_3d_key="optimized")
         plt.show()
 
         if save_anim_path:
