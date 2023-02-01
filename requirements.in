@@ -1,0 +1,10 @@
+# To generate requirements.txt:
+# `pip-compile requirements.in --allow-unsafe`
+
+ipython
+numpy
+scipy
+setuptools
+matplotlib
+numpy-stl
+ipdb

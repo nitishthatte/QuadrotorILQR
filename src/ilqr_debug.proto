@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package src.proto;
+
+import "src/trajectory.proto";
+
+message QuadrotorILQRIterDebug {
+  QuadrotorTrajectory trajectory = 1;
+  double cost = 2;
+}
+
+message QuadrotorILQRDebug {
+  repeated QuadrotorILQRIterDebug iter_debugs = 1;
+}

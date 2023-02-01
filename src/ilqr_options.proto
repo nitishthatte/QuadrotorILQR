@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package src.proto;
+
+message LineSearchParams {
+  double step_update = 1;
+  double desired_reduction_frac = 2;
+  int32 max_iters = 3;
+}
+
+message ConvergenceCriteria {
+  double rtol = 1;
+  double atol = 2;
+  double max_iters = 3;
+}
+
+message ILQROptions {
+  LineSearchParams line_search_params = 1;
+  ConvergenceCriteria convergence_criteria = 2;
+  bool populate_debug = 3;
+}

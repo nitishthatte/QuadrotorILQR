@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package src.proto;
+
+message Vec3 {
+  double c0 = 1;
+  double c1 = 2;
+  double c2 = 3;
+}
+
+message Vec4 {
+  double c0 = 1;
+  double c1 = 2;
+  double c2 = 3;
+  double c3 = 4;
+}
+
+message Vec6 {
+  double c0 = 1;
+  double c1 = 2;
+  double c2 = 3;
+  double c3 = 4;
+  double c4 = 5;
+  double c5 = 6;
+}
+
+message SO3 {
+  // quaternion with coefficients w, x, y, z
+  Vec4 quaternion = 1;
+}
+
+message SE3 {
+  Vec3 translation = 1;
+  SO3 rotation = 2;
+}
+
+message QuadrotorState {
+  SE3 inertial_from_body = 1;
+  Vec6 body_velocity = 2;
+}
+
+message QuadrotorTrajectoryPoint {
+  double time_s = 1;
+  QuadrotorState state = 2;
+  Vec4 control = 3;
+}
+
+message QuadrotorTrajectory {
+  repeated QuadrotorTrajectoryPoint points = 1;
+}
