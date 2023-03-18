@@ -1,10 +1,10 @@
 """Custom Bazel Rules"""
 
-load("@py_deps//:requirements.bzl", "requirement")
-load("@rules_python//python:defs.bzl", "py_binary")
-load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
+load("@py_deps//:requirements.bzl", "requirement")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_python//python:defs.bzl", "py_binary")
 
 def proto_lib_collection(name, srcs, deps = [], visibility = None):
     """Generates a proto libraries for the given proto sources.

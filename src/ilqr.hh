@@ -119,8 +119,8 @@ struct ILQR {
           .x = C.x + J_x.transpose() * v_x,
           .u = C.u + J_u.transpose() * v_x,
           .xx = C.xx + J_x.transpose() * v_xx * J_x,
-          .xu = C.xu + J_x.transpose() * v_xx * J_u,
           .uu = C.uu + J_u.transpose() * v_xx * J_u,
+          .xu = C.xu + J_x.transpose() * v_xx * J_u,
       };
 
       const auto Quu_ldlt = Q.uu.ldlt();
