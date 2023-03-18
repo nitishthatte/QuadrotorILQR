@@ -1,17 +1,19 @@
-import sys
-from src.quadrotor_ilqr_binding import QuadrotorILQR
-from scipy.spatial.transform import Rotation as R
-import src.trajectory_pb2 as traj
-import src.ilqr_options_pb2 as opts
-import numpy as np
-from scipy.spatial.transform import Rotation
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from mpl_toolkits import mplot3d
 import argparse
-from stl import mesh
-from enum import IntEnum
+import sys
 from copy import deepcopy
+from enum import IntEnum
+
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits import mplot3d
+from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation as R
+from stl import mesh
+
+import src.ilqr_options_pb2 as opts
+import src.trajectory_pb2 as traj
+from src.quadrotor_ilqr_binding import QuadrotorILQR
 
 
 class IDX(IntEnum):
@@ -107,8 +109,8 @@ def make_traj_pt(t_s, vel_mps, horizon_s):
 def plot_temporal_trajectories(traj_dict):
     fig, ax = plt.subplots(7, 1, figsize=(9, 12), sharex=True)
 
-    for label, traj in traj_dict.items():
-        traj_array = extract_traj_array(traj)
+    for label, trajectory in traj_dict.items():
+        traj_array = extract_traj_array(trajectory)
 
         ax[0].plot(
             traj_array[:, IDX.time_s],
@@ -186,8 +188,8 @@ def animate_trajectories(traj_dict, plot_3d_key):
     ax.set_xlabel("x [m]")
     ax.set_ylabel("y [m]")
     ax.set_zlabel("z [m]")
-    for label, traj in traj_dict.items():
-        traj_array = extract_traj_array(traj)
+    for label, trajectory in traj_dict.items():
+        traj_array = extract_traj_array(trajectory)
         ax.plot3D(
             traj_array[:, IDX.translation_x_m],
             traj_array[:, IDX.translation_y_m],

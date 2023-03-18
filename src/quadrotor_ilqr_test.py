@@ -1,5 +1,6 @@
-from src.quadrotor_ilqr import main
 import unittest
+
+from src.quadrotor_ilqr import main
 
 
 class TestQuadrotorILQRMain(unittest.TestCase):
