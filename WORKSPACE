@@ -2,8 +2,8 @@ workspace(
     name = "lie_dynamics",
 )
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 ### External Dependencies ###
 
@@ -19,9 +19,8 @@ http_archive(
 ## Gtest ##
 git_repository(
     name = "gtest",
-    commit = "703bd9caab50b139428cea1aaff9974ebee5742e",
+    commit = "b796f7d44681514f58a683a3a71ff17c94edb0c1",
     remote = "https://github.com/google/googletest",
-    shallow_since = "1570114335 -0400",
 )
 
 ## Micro Lie ##

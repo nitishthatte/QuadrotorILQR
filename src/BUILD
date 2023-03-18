@@ -1,7 +1,8 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//src/common:custom_rules.bzl", "irepl", "proto_lib_collection")
-load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 load("@py_deps//:requirements.bzl", "requirement")
+load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("//src/common:custom_rules.bzl", "irepl", "proto_lib_collection")
 
 cc_library(
     name = "quadrotor_model",
@@ -242,6 +243,7 @@ py_binary(
 
 py_test(
     name = "quadrotor_ilqr_test",
+    size = "small",
     srcs = ["quadrotor_ilqr_test.py"],
     deps = [
         ":quadrotor_ilqr",
